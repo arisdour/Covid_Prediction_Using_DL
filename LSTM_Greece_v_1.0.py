@@ -119,7 +119,6 @@ def model_train(i, model, traingenerator, valgenerator, ep):
     model.save('Models\model_' + str(i) + '.h5', overwrite=True)
     plotloss(history,str(i))
     return model
-    # Predict using the generator
 
 
 def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
@@ -149,9 +148,9 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         current_pred = float(current_pred[0]) #Convert Prediction to integer 
 
         # ##### Create New Day Values #####
-        newcases= current_pred-predictiondata.iloc[len(predictiondata.index)-1,0] # Calculate the new cases 
+        # newcases= current_pred-predictiondata.iloc[len(predictiondata.index)-1,0] # Calculate the new cases 
         # totalpm = current_pred * 0.096
-        predictiondata.loc[len(predictiondata.index)] = [current_pred, newcases]#,totalpm ]  # Fill the two first collumns of the Dataframe 
+        predictiondata.loc[len(predictiondata.index)] = [current_pred]#, newcases]#,totalpm ]  # Fill the two first collumns of the Dataframe 
 
 
         # predictiondata['Percentage'] = predictiondata['Daily_Confirmed_Cases'].pct_change() #Calculate Percentage 
@@ -232,14 +231,14 @@ def find_best_model(mape):
 # def main():
     
 Windeos_loc="owid-covid-data.csv"
-feature_list=["total_cases", "new_cases"]#, "total_cases_per_million"]
+feature_list=["total_cases"]#, "total_cases_per_million"]
 a=str(feature_list)
 n_features = len(feature_list)
 print(a)
 different_nodes = [20]
 seq_size = 3
-epochs = 60
-rep = 2
+epochs = 1
+rep = 10
 
 dates,greece , Greece_total =createdata(Windeos_loc,feature_list)
 
