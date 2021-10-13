@@ -15,6 +15,23 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
 
 
+
+########################## Telegram Bot   ###################################
+
+import requests
+
+def telegram_bot_sendtext(bot_message):
+    
+    bot_token = '2062474091:AAGp1GiSrNw7DRds4qwLHBOkZ_Do9HlQ5V8'
+    bot_chatID = '2013533042'
+    send_text = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + bot_chatID + '&parse_mode=Markdown&text=' + bot_message
+    
+    response = requests.get(send_text)
+
+    return response.json()
+
+
+
 ########################## Functions   ###################################
 
 def createdata(location , feature_list):
@@ -197,13 +214,26 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
         
         mape_7days = mean_absolute_percentage_error(forecast['Actual'][:7], forecast['Prediction'][:7])
         MAPE_4_7days.append(mape_7days)
-
+        
+        
+        
+        #########################################################
+        percentage = i*100 /times
+        text='Currently in: ' + str(percentage) + ' %\n'
+        telegram_bot_sendtext(text)
+        #########################################################
+        
+        
     metrics = pd.DataFrame(
         {'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
          'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node})
 
     #metrics =metrics.append( metrics.groupby(['Nodes']).mean())
     metrics=metrics.groupby(['Nodes']).mean()
+    
+    text='\n Done \n'
+    telegram_bot_sendtext(text)
+    
     return metrics
 
 
@@ -225,9 +255,9 @@ feature_list=["total_cases"]
 a=str(feature_list)
 n_features = len(feature_list)
 print(a)
-different_nodes = [18,20,22,25,30,35,44,59,88]
+different_nodes = [20]
 seq_size = 3
-epochs = 60
+epochs = 1
 rep = 10
 
 dates,greece , Greece_total =createdata(Windeos_loc,feature_list)
@@ -266,6 +296,8 @@ MAPE_4_Next_day = []
 
 start = time.time()
 for i in range(len(different_nodes)):
+    
+
     
     nodes = different_nodes[i]
     times = rep
@@ -339,6 +371,21 @@ metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.3f",
 
 
 
+
+
+
+
+# def report():
+#     my_balance = 10   ## Replace this number with an API call to fetch your account balance
+#     my_message = "Current balance is: {}".format(my_balance)   ## Customize your message
+#     telegram_bot_sendtext(my_message)
+
+    
+# schedule.every().day.at("14:00").do(report)
+
+# while True:
+#     schedule.run_pending()
+#     time.sleep(1)
 
 
 
