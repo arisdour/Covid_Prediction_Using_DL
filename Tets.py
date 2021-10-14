@@ -188,9 +188,11 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
     
 
     for i in range(times):
+        
             lrate = [0.0001 , 0.0005 ,0.01, 0.05]
-            for i in range(len(lrate)):
-                experimentmodel = model_create(nodes, seq_size ,n_features,lrate[i])
+            tic =time.perf_counter()
+            for j in range(len(lrate)):
+                experimentmodel = model_create(nodes, seq_size ,n_features,lrate[j])
                 
                 experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
                 
@@ -222,14 +224,16 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
                 MAPE_4_7days.append(mape_7days)
                 
                 epoches.append(epochs)
-                lerning.append(lrate[i])
-        
-        #########################################################
-        # percentage = (i+1)*100 /times
-        # text='Currently in: ' + str(percentage) + ' %\n'
-        # telegram_bot_sendtext(text)
-        #########################################################
-        
+                lerning.append(lrate[j
+                                     ])
+                        
+            toc =time.perf_counter()
+
+            ########################################################
+            percentage = (i+1)*100 /times
+            text='📢📢 Currently in: ' + str(percentage) + '% for  Epoch: ' + str(epochs) + '\n Time: {:.2f} '.format(((toc-tic)/60)) + ' min' +  '\n'
+            telegram_bot_sendtext(text)
+            ########################################################
         
     metrics = pd.DataFrame(
         {'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
@@ -239,10 +243,7 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
     metrics = metrics.groupby(['Epochs','Learning Rate' ]).mean()
     # metrics=metrics.groupby(['Epochs']).mean()
     
-    #########################################################
-    text='\n Done \n'
-    telegram_bot_sendtext(text)
-    #########################################################
+
     
     return metrics
 
@@ -259,87 +260,102 @@ def find_best_model(mape):
 
 
 # def main():
+try:
     
-Windeos_loc="owid-covid-data.csv"
-feature_list=["total_cases"]
-a=str(feature_list)
-n_features = len(feature_list)
-print(a)
-different_nodes = 20
-seq_size = 3
-ep = [60,75,100,150]
-# ep = [1,2]
-rep = 10
-
-dates,greece , Greece_total =createdata(Windeos_loc,feature_list)
-
-train_set, validation_set, test_set = split_data( greece, seq_size)
-
-#Scaling 
-scaler = MinMaxScaler() 
-scaler.fit(train_set)
-
-train_set=pd.DataFrame(scaler.transform(train_set))
-train_set=train_set.set_axis(feature_list, axis=1, inplace=False)
-
-validation_set=pd.DataFrame(scaler.transform(validation_set))
-validation_set=validation_set.set_axis(feature_list, axis=1, inplace=False)
-
-test_set=pd.DataFrame(scaler.transform(test_set))
-test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
-
-
-train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
-                                                                test_set)
-
-
-inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,
-                                                       dates)
-node = []
-MAE_4 = []
-MAPE_4 = []
-MSE_4 = []
-RMSE_4 = []
-MAPE_4_3days = []
-MAPE_4_7days = []
-MAPE_4_Next_day = []
-epoches = []
-lerning = []
-
-
-start = time.time()
-for i in range(len(ep)):
-    # different_nodes = [18,20,22,35,44]
-    nodes = 20
-    epochs =ep[i]
-    times = rep
-    metrics = experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
-                          validation_set, train_set, inv_val, inv_test, dates)
-end = time.time()
-
-hours, rem = divmod(end - start, 3600)
-minutes, seconds = divmod(rem, 60)
-print("{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
-
-
-
-#Save Results
-metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.3f",index=True, header=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    #########################################################
+    text='🔔🔔🔔 Started 🔔🔔🔔'
+    telegram_bot_sendtext(text)
+    #########################################################
+    
+    Windeos_loc="owid-covid-data.csv"
+    feature_list=["total_cases"]
+    a=str(feature_list)
+    n_features = len(feature_list)
+    print(a)
+    different_nodes = 20
+    seq_size = 3
+    
+    ep = [60,75,100,150]
+    rep = 10
+    
+    
+    # ep = [1,3]
+    # rep = 2
+    
+    
+    dates,greece , Greece_total =createdata(Windeos_loc,feature_list)
+    
+    train_set, validation_set, test_set = split_data( greece, seq_size)
+    
+    #Scaling 
+    scaler = MinMaxScaler() 
+    scaler.fit(train_set)
+    
+    train_set=pd.DataFrame(scaler.transform(train_set))
+    train_set=train_set.set_axis(feature_list, axis=1, inplace=False)
+    
+    validation_set=pd.DataFrame(scaler.transform(validation_set))
+    validation_set=validation_set.set_axis(feature_list, axis=1, inplace=False)
+    
+    test_set=pd.DataFrame(scaler.transform(test_set))
+    test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
+    
+    
+    train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
+                                                                    test_set)
+    
+    
+    inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,
+                                                           dates)
+    node = []
+    MAE_4 = []
+    MAPE_4 = []
+    MSE_4 = []
+    RMSE_4 = []
+    MAPE_4_3days = []
+    MAPE_4_7days = []
+    MAPE_4_Next_day = []
+    epoches = []
+    lerning = []
+    
+    
+    start = time.time()
+    for i in range(len(ep)):
+        # different_nodes = [18,20,22,35,44]
+        nodes = 20
+        epochs =ep[i]
+        
+        #########################################################
+        text = str(i+1) + ' out of ' + str(len(ep))
+        telegram_bot_sendtext(text)
+        #########################################################
+        
+        
+        times = rep
+        metrics = experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
+                              validation_set, train_set, inv_val, inv_test, dates)
+    end = time.time()
+    
+    hours, rem = divmod(end - start, 3600)
+    minutes, seconds = divmod(rem, 60)
+    print("{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
+    
+    
+    #########################################################
+    text='\n 🧪🧪🧪 Finished 🧪🧪🧪'
+    telegram_bot_sendtext(text)
+    #########################################################
+    
+    
+    #Save Results
+    metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.3f",index=True, header=True)
+    
+    
+    
+except:
+        
+    #########################################################
+    text='🚨🚨🚨🚨 Value Error 🚨🚨🚨🚨'
+    telegram_bot_sendtext(text)
+    #########################################################
 
