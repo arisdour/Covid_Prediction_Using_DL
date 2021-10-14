@@ -122,9 +122,9 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
     return set1, set2, set3
 
 
-def model_create(nodes, seq_size , features):
-    bs = [1,32,64]
-    optimizer = keras.optimizers.Adam(learning_rate=0.01)
+def model_create(nodes, seq_size , features,lrate):
+
+    optimizer = keras.optimizers.Adam(learning_rate=lrate)
     model = Sequential()
     model.add(LSTM(nodes, activation='relu' ,kernel_initializer='uniform',return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
@@ -136,7 +136,7 @@ def model_create(nodes, seq_size , features):
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
     model.save('Models\model_' + str(i) + '.h5', overwrite=True)
-    # plotloss(history,str(i))
+    plotloss(history,str(i))
     return model
 
 
@@ -188,38 +188,41 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
     
 
     for i in range(times):
-        experimentmodel = model_create(nodes, seq_size ,n_features)
-
-        experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
-
-        forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-        # plotprediction(forecast ,str(i))
-
-        mae_4 = mean_absolute_error(forecast['Actual'], forecast['Prediction'])
-        MAE_4.append(mae_4)
-
-        mape_4 = mean_absolute_percentage_error(forecast['Actual'], forecast['Prediction'])
-        MAPE_4.append(mape_4)
-
-        mse_4 = mean_squared_error(forecast['Actual'], forecast['Prediction'])
-        MSE_4.append(mse_4)
-
-        rmse_4 = mean_squared_error(forecast['Actual'], forecast['Prediction'], squared=False)
-        RMSE_4.append(rmse_4)
-
-        node.append(nodes)
-
-
-        mape_4_next_day = mean_absolute_percentage_error(forecast['Actual'][:1], forecast['Prediction'][:1])
-        MAPE_4_Next_day.append(mape_4_next_day)
- 
-        mape_3days = mean_absolute_percentage_error(forecast['Actual'][:3], forecast['Prediction'][:3])
-        MAPE_4_3days.append(mape_3days)
-        
-        mape_7days = mean_absolute_percentage_error(forecast['Actual'][:7], forecast['Prediction'][:7])
-        MAPE_4_7days.append(mape_7days)
-        
-        epoches.append(epochs)
+            lrate = [0.0001 , 0.0005 ,0.01, 0.05]
+            for i in range(len(lrate)):
+                experimentmodel = model_create(nodes, seq_size ,n_features,lrate[i])
+                
+                experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+                
+                forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
+                # plotprediction(forecast ,str(i))
+                
+                mae_4 = mean_absolute_error(forecast['Actual'], forecast['Prediction'])
+                MAE_4.append(mae_4)
+                
+                mape_4 = mean_absolute_percentage_error(forecast['Actual'], forecast['Prediction'])
+                MAPE_4.append(mape_4)
+                
+                mse_4 = mean_squared_error(forecast['Actual'], forecast['Prediction'])
+                MSE_4.append(mse_4)
+                
+                rmse_4 = mean_squared_error(forecast['Actual'], forecast['Prediction'], squared=False)
+                RMSE_4.append(rmse_4)
+                
+                node.append(nodes)
+                
+                
+                mape_4_next_day = mean_absolute_percentage_error(forecast['Actual'][:1], forecast['Prediction'][:1])
+                MAPE_4_Next_day.append(mape_4_next_day)
+                
+                mape_3days = mean_absolute_percentage_error(forecast['Actual'][:3], forecast['Prediction'][:3])
+                MAPE_4_3days.append(mape_3days)
+                
+                mape_7days = mean_absolute_percentage_error(forecast['Actual'][:7], forecast['Prediction'][:7])
+                MAPE_4_7days.append(mape_7days)
+                
+                epoches.append(epochs)
+                lerning.append(lrate[i])
         
         #########################################################
         # percentage = (i+1)*100 /times
@@ -230,13 +233,16 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
         
     metrics = pd.DataFrame(
         {'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
-         'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node , 'Epochs': epoches})
+         'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node , 'Epochs': epoches , 'Learning Rate' : lerning})
 
-    # metrics =metrics.append( metrics.groupby(['Nodes']).mean())
-    metrics=metrics.groupby(['Epochs']).mean()
+    # metrics =metrics.append( metrics.groupby(['Epochs','Learning Rate' ]).mean())
+    metrics = metrics.groupby(['Epochs','Learning Rate' ]).mean()
+    # metrics=metrics.groupby(['Epochs']).mean()
     
+    #########################################################
     text='\n Done \n'
     telegram_bot_sendtext(text)
+    #########################################################
     
     return metrics
 
@@ -261,9 +267,9 @@ n_features = len(feature_list)
 print(a)
 different_nodes = 20
 seq_size = 3
-# ep = [25,50,60,75,100,150,200]
-ep = [60,75,100]
-rep = 1
+ep = [60,75,100,150]
+# ep = [1,2]
+rep = 10
 
 dates,greece , Greece_total =createdata(Windeos_loc,feature_list)
 
@@ -298,12 +304,13 @@ MAPE_4_3days = []
 MAPE_4_7days = []
 MAPE_4_Next_day = []
 epoches = []
+lerning = []
 
 
 start = time.time()
 for i in range(len(ep)):
-    
-    nodes = different_nodes
+    # different_nodes = [18,20,22,35,44]
+    nodes = 20
     epochs =ep[i]
     times = rep
     metrics = experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
