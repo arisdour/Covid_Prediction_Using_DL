@@ -189,7 +189,7 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
 
     for i in range(times):
         
-            lrate = [0.0001 , 0.0005 ,0.01, 0.05]
+            lrate = [0.0001 , 0.0005 ,0.001]
             tic =time.perf_counter()
             for j in range(len(lrate)):
                 experimentmodel = model_create(nodes, seq_size ,n_features,lrate[j])
@@ -239,9 +239,8 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
         {'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
          'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node , 'Epochs': epoches , 'Learning Rate' : lerning})
 
-    # metrics =metrics.append( metrics.groupby(['Epochs','Learning Rate' ]).mean())
-    metrics = metrics.groupby(['Epochs','Learning Rate' ]).mean()
-    # metrics=metrics.groupby(['Epochs']).mean()
+    # metrics =metrics.append( metrics.groupby(['Epochs','Learning Rate','Nodes' ]).mean())
+    metrics = metrics.groupby(['Epochs','Learning Rate', 'Nodes' ]).mean()
     
 
     
@@ -275,7 +274,7 @@ try:
     different_nodes = 20
     seq_size = 3
     
-    ep = [60,75,100,150]
+    ep = [60,75,150]
     rep = 10
     
     
@@ -321,20 +320,21 @@ try:
     
     start = time.time()
     for i in range(len(ep)):
-        # different_nodes = [18,20,22,35,44]
-        nodes = 20
-        epochs =ep[i]
+        different_nodes = [18,20,22,35,44]
+        for k in range(len(different_nodes)):
+            nodes = different_nodes[k]
+            epochs =ep[i]
         
-        #########################################################
-        text = str(i+1) + ' out of ' + str(len(ep))
-        telegram_bot_sendtext(text)
-        #########################################################
+            #########################################################
+            text = str(i+1) + ' out of ' + str(len(ep))
+            telegram_bot_sendtext(text)
+            #########################################################
         
         
-        times = rep
-        metrics = experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
+            times = rep
+            metrics = experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
                               validation_set, train_set, inv_val, inv_test, dates)
-    end = time.time()
+        end = time.time()
     
     hours, rem = divmod(end - start, 3600)
     minutes, seconds = divmod(rem, 60)
