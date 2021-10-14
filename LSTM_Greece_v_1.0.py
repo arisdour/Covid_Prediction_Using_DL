@@ -257,7 +257,7 @@ n_features = len(feature_list)
 print(a)
 different_nodes = [20]
 seq_size = 3
-epochs = 75
+epochs = 100
 rep = 10
 
 dates,greece , Greece_total =createdata(Windeos_loc,feature_list)
