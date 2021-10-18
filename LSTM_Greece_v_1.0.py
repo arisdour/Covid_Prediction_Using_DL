@@ -123,10 +123,11 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 
 
 def model_create(nodes, seq_size , features):
+    opt = keras.optimizers.Adam(learning_rate=0.0001)
     model = Sequential()
     model.add(LSTM(nodes, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
-    model.compile(optimizer='adam', loss='mean_squared_error')
+    model.compile(optimizer=opt, loss='mean_squared_error')
     model.summary()
     return model
 
@@ -255,9 +256,9 @@ feature_list=["total_cases"]
 a=str(feature_list)
 n_features = len(feature_list)
 print(a)
-different_nodes = [20]
+different_nodes = 44
 seq_size = 3
-epochs = 100
+epochs = 75
 rep = 10
 
 dates,greece , Greece_total =createdata(Windeos_loc,feature_list)
@@ -295,12 +296,10 @@ MAPE_4_7days = []
 MAPE_4_Next_day = []
 
 start = time.time()
-for i in range(len(different_nodes)):
-    
-    nodes = different_nodes[i]
-    times = rep
-    metrics = experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
-                          validation_set, train_set, inv_val, inv_test, dates)
+nodes = different_nodes
+times = rep
+metrics = experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
+                      validation_set, train_set, inv_val, inv_test, dates)
 end = time.time()
 
 hours, rem = divmod(end - start, 3600)
@@ -314,7 +313,6 @@ metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.3f",
 
 bestmodel = find_best_model(MAPE_4)
 
-# # lour, lour_1 = predict(bestmodel, scaler, val_generator, validation_set, inv_val, train_set) #Cotnrol Line
 
 bestmodel.fit_generator(val_generator, epochs=30, verbose=1) 
 bestmodel.save(r"Models\Final_model_for_"+ a + ".h5")
