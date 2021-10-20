@@ -176,8 +176,8 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
     
     
-    A=[0.189686,	0.4499396863691194, 0.4469240048250904, 0.39897466827503014, 0.41375150784077197,0.36851628468033776, 0.19963811821471653]
-    newcasesprediction = pd.DataFrame(A)
+    # A=[0.189686,	0.4499396863691194, 0.4469240048250904, 0.39897466827503014, 0.41375150784077197,0.36851628468033776, 0.19963811821471653]
+    # newcasesprediction = pd.DataFrame(A)
     
     current_batch = trainset[-seq_size:]
     forecast = pd.DataFrame()
@@ -200,24 +200,29 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         # ##### Create New Day Values #####
         
         #### Total Cases ####
-        per_mil_tot = current_pred * 0.096 #Calculate Total Caces per million 
+        # per_mil_tot = current_pred * 0.096 #Calculate Total Caces per million 
         
         #### New Cases ####
         new_cases= current_pred-predictiondata.iloc[len(predictiondata.index)-1,0] # Calculate  new cases         
-        newcasesprediction.loc[len(newcasesprediction.index)] = [new_cases] #append new cases 
+        # newcasesprediction.loc[len(newcasesprediction.index)] = [new_cases] #append new cases 
         
-        per_mil_new = new_cases*0.096  #Calculate New per million 
+        # per_mil_new = new_cases*0.096  #Calculate New per million 
         
         
-        smoothednew = newcasesprediction.rolling(window=7).mean()
-        smoothednew = float( smoothednew.iloc[6+i])
-        per_mil_smoothed_new= smoothednew * 0.096  #Calculate Smoothed Permillion New Cases 
+        # smoothednew = newcasesprediction.rolling(window=7).mean()
+        # smoothednew = float( smoothednew.iloc[6+i])
+        # per_mil_smoothed_new= smoothednew * 0.096  #Calculate Smoothed Permillion New Cases 
         
+        # print("\n ******************** \n")
+        # print(current_pred)
+        # print(new_cases)
+        # print(smoothednew)
         
         
         
         #Add New Day Values 
-        predictiondata.loc[len(predictiondata.index)] = [current_pred, smoothednew]#,totalpm ]  # Fill the two first collumns of the Dataframe 
+        predictiondata.loc[len(predictiondata.index)] = [current_pred , new_cases]#,totalpm ]  # Fill the two first collumns of the Dataframe 
+        # print(predictiondata)
 
         # predictiondata['Percentage'] = predictiondata['Daily_Confirmed_Cases'].pct_change() #Calculate Percentage 
         # predictiondata['Moving Average'] = predictiondata["New Cases"].rolling(3).mean() #Calculate Mean 
@@ -329,7 +334,7 @@ def find_best_model(mape):
 
 
 seq_size = 3
-times =10 
+times =10
 # learning_rate = (0.001,0.0001,0.0005 )
 # epochs = (60 , 75 , 150)
 # nodes = (18,20,22,25,30,35,44,59,88)
@@ -344,7 +349,9 @@ Greece_total , titles =readdata(loc)
 flist = featcombos('cases', titles, combos)
 
 
-feature_list =flist[4]
+# feature_list =[flist[0][0]]
+
+feature_list =flist[0]
 feature_list = list(itertools.chain(feature_list))
 n_features = len(feature_list)
 
@@ -374,7 +381,7 @@ test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
 
 train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
                                                                 test_set)
-
+a =train_generator[3]
 
 inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,
                                                         dates)
