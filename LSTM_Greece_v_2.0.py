@@ -52,6 +52,7 @@ def featcombos(featurename ,titles , combin) :
     
     titles.str.contains(featurename)
     features = titles[titles.str.contains(featurename)].to_list()
+    print(features)
     feature_list = list(combinations(features , combin))
     
     return feature_list
@@ -111,7 +112,7 @@ def plotloss(mod, name=""):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig("Plots\loss_model" + name +".jpeg"  )
+    plt.savefig("Plots/loss_model" + name +".jpeg"  )
     plt.show()
 
 
@@ -123,7 +124,7 @@ def plotprediction(ypredict , name=""):
     plt.xlabel('Date')
     plt.ylabel('Cases')
     plt.legend()
-    plt.savefig("Plots\pred" + name +".jpeg"  )
+    plt.savefig("Plots/pred" + name +".jpeg"  )
     plt.show()
    
 
@@ -160,8 +161,8 @@ def model_create(nodes, seq_size , features,lrate):
 
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
-    model.save('Models\model_' + str(i) + '.h5', overwrite=True)
-    # plotloss(history,str(i))
+    model.save('Models/model_' + str(i) + '.h5', overwrite=True)
+    plotloss(history,str(i))
     return model
 
 
@@ -170,35 +171,71 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
     # Forecast   Predict using a for loop
     index = inverseval.index
+    
     predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
+    
+    
+    A=[0.189686,	0.4499396863691194, 0.4469240048250904, 0.39897466827503014, 0.41375150784077197,0.36851628468033776, 0.19963811821471653]
+    newcasesprediction = pd.DataFrame(A)
+    
     current_batch = trainset[-seq_size:]
     forecast = pd.DataFrame()
 
     # Predict future, beyond test dates
     future = len(validation_set) - seq_size  # Days
-    for i in range(future):
-                
+    for i in range(future): #instead of future
+        
         current_batch = predictiondata[i:seq_size + i] #Create input for LSTM (Based on sequence size )
-
         current_batch = current_batch.to_numpy()  #Input to array 
-
         current_batch = current_batch.reshape(1, seq_size, n_features)  # Reshape
 
         ### Prediction ##
         
         current_pred = model.predict(current_batch) # Make a prediction 
         current_pred = float(current_pred[0]) #Convert Prediction to integer 
-        predictiondata.loc[len(predictiondata.index)] = [current_pred]   
+        
+        
+        
+        # ##### Create New Day Values #####
+        
+        #### Total Cases ####
+        per_mil_tot = current_pred * 0.096 #Calculate Total Caces per million 
+        
+        #### New Cases ####
+        new_cases= current_pred-predictiondata.iloc[len(predictiondata.index)-1,0] # Calculate  new cases         
+        newcasesprediction.loc[len(newcasesprediction.index)] = [new_cases] #append new cases 
+        
+        per_mil_new = new_cases*0.096  #Calculate New per million 
+        
+        
+        smoothednew = newcasesprediction.rolling(window=7).mean()
+        smoothednew = float( smoothednew.iloc[6+i])
+        per_mil_smoothed_new= smoothednew * 0.096  #Calculate Smoothed Permillion New Cases 
+        
+        
+        
+        
+        #Add New Day Values 
+        predictiondata.loc[len(predictiondata.index)] = [current_pred, smoothednew]#,totalpm ]  # Fill the two first collumns of the Dataframe 
+
+        # predictiondata['Percentage'] = predictiondata['Daily_Confirmed_Cases'].pct_change() #Calculate Percentage 
+        # predictiondata['Moving Average'] = predictiondata["New Cases"].rolling(3).mean() #Calculate Mean 
+        # predictiondata=predictiondata.fillna(0.0051519) # Fill one missing value with the true value 
+        
+
+        
 
     forecast = predictiondata[-(future):] #Save results in a dataframe 
     forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual cases 
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
+    
+    
     
     
     return forecast
@@ -231,7 +268,7 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 ########################## Cluster Fuck  LSTM ##############################################
 
 
-def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
+def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lrate):
     
     experimentmodel = model_create(nodes, seq_size ,n_features , lrate)
@@ -239,7 +276,7 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
     experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-    # plotprediction(forecast ,str(i))
+    plotprediction(forecast ,str(i))
     
     
     ##################### Metrics ######################
@@ -275,7 +312,13 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
     return 
 
 
-
+def find_best_model(mape):
+    mape = pd.DataFrame(mape)
+    min = mape.idxmin()
+    j = min[0]
+    best_model = keras.models.load_model(r"Models/model_" + str(j) + ".h5")
+    print("Best Model is :model_" + str(j) + ".h5")
+    return best_model
 
 ##########################  MAIN ##############################################
 
@@ -287,9 +330,9 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
 
 seq_size = 3
 times =10 
-learning_rate = (0.001,0.0001,0.0005 )
-epochs = (60 , 75 , 150)
-nodes = (18,20,22,25,30,35,44,59,88)
+# learning_rate = (0.001,0.0001,0.0005 )
+# epochs = (60 , 75 , 150)
+# nodes = (18,20,22,25,30,35,44,59,88)
 combos=2
 
 
@@ -301,7 +344,7 @@ Greece_total , titles =readdata(loc)
 flist = featcombos('cases', titles, combos)
 
 
-feature_list =flist[0]
+feature_list =flist[4]
 feature_list = list(itertools.chain(feature_list))
 n_features = len(feature_list)
 
@@ -317,6 +360,7 @@ train_set, validation_set, test_set = split_data( greece, seq_size)
 #Scaling 
 scaler = MinMaxScaler() 
 scaler.fit(train_set)
+
 
 train_set=pd.DataFrame(scaler.transform(train_set))
 train_set=train_set.set_axis(feature_list, axis=1, inplace=False)
@@ -349,59 +393,44 @@ MAPE_4_Next_day = []
 
 
 
-Hyperparameters= Hyper(learning_rate, epochs, nodes ,times )
+# Hyperparameters= Hyper(learning_rate, epochs, nodes ,times )
+
+
+nodes=44
+lr = 0.0001
+epochs=75
 
 
 
+start = time.time()
+for i in range(10):
+    # nodes , lr , epochs = Hyperparameters[i]
+    experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
+                      validation_set, train_set, inv_val, inv_test, dates , lr )
+
+
+end = time.time()
 
 
 
-# #########################################################
-
-# text='🔔🔔🔔 Started 🔔🔔🔔 \n'
-# telegram_bot_sendtext(text)
-# #########################################################
-
-# start = time.time()
-# for i in range(len(Hyperparameters)):
-#     nodes , lr , epochs = Hyperparameters[i]
-    
-#     experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
-#                       validation_set, train_set, inv_val, inv_test, dates , lr )
-#     #########################################################
-#     percentage = (i+1)*100 /len(Hyperparameters)
-#     text='Currently in: ' + str(percentage) + ' %\n'
-#     telegram_bot_sendtext(text)
-#     #########################################################
+###############################################################################
+hours, rem = divmod(end - start, 3600)
+minutes, seconds = divmod(rem, 60)
+print("{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
+###############################################################################
 
 
-# end = time.time()
+metrics = pd.DataFrame(
+    {'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
+      'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node , 'Learning Rate' : LR , 'Epochs' : Epochs})
 
-# #########################################################
-
-# text='🔔🔔🔔 Finished 🔔🔔🔔 \n'
-# telegram_bot_sendtext(text)
-# #########################################################
-
-
-# ###############################################################################
-# hours, rem = divmod(end - start, 3600)
-# minutes, seconds = divmod(rem, 60)
-# print("{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
-# ###############################################################################
-
-
-# metrics = pd.DataFrame(
-#     {'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
-#      'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node , 'Learning Rate' : LR , 'Epochs' : Epochs})
-
-# # metrics =metrics.append( metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']).mean())
+metrics =metrics.append( metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']).mean())
 # metrics = metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']).mean()
 
 
 
 # #Save Results
-# metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.3f",index=True, header=True)
+metrics.to_csv("Results/Valdation_Results_for_"+ str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
 
 
@@ -409,7 +438,55 @@ Hyperparameters= Hyper(learning_rate, epochs, nodes ,times )
 
 
 
+bestmodel = find_best_model(MAPE_4)
 
+
+bestmodel.fit_generator(val_generator, epochs=30, verbose=1) 
+bestmodel.save(r"Models/Final_model_for_"+ str(feature_list) + ".h5")
+
+forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+
+plotprediction(forecastf[:7] , "iction_7_day_prediction")
+plotprediction(forecastf[:14] , "iction_14_day_prediction")
+plotprediction(forecastf[:30] , "iction_30_day_prediction")
+plotprediction(forecastf[:60] , "iction_60_day_prediction")
+plotprediction(forecastf[:90] , "iction_90_day_prediction")
+
+
+mae = mean_absolute_error(forecastf['Actual'], forecastf['Prediction'])
+mae= float("{:.3f}".format(mae))
+
+mape = mean_absolute_percentage_error(forecastf['Actual'], forecastf['Prediction'])
+mape= float("{:.3f}".format(mape))
+
+mape_1day = mean_absolute_percentage_error(forecastf['Actual'][:1], forecastf['Prediction'][:1])
+mape_1day= float("{:.3f}".format(mape_1day))
+
+
+mape_3days = mean_absolute_percentage_error(forecastf['Actual'][:3], forecastf['Prediction'][:3])
+mape_3days= float("{:.3f}".format(mape_3days))
+
+mape_7days = mean_absolute_percentage_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
+mape_7days= float("{:.3f}".format(mape_7days))
+                  
+mape_14days = mean_absolute_percentage_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
+mape_14days= float("{:.3f}".format(mape_14days))
+
+mape_30days = mean_absolute_percentage_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
+mape_30days= float("{:.3f}".format(mape_30days))
+
+mape_60days = mean_absolute_percentage_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
+mape_60days= float("{:.3f}".format(mape_60days))
+
+mse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'])
+mse= float("{:.3f}".format(mse))
+rmse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'], squared=False)
+rmse= float("{:.3f}".format(rmse))
+
+finalresults=pd.DataFrame({"MAE": [mae],"MAPE 1 Day" : [mape_1day] , "MAPE 3 Days" :[mape_3days],"MAPE 7 Days " :[mape_7days] , "MAPE 14 Days" :[mape_14days], "MAPE 30 Days" :[mape_30days],"MAPE 60 Days" :[mape_60days],"MAPE":[mape], "RMSE": [rmse], "MSE":[mse]})
+
+
+finalresults.to_csv("Results/Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
 
 
