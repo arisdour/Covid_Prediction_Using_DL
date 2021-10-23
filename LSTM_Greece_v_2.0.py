@@ -176,8 +176,8 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
     
     
-    # A=[0.189686,	0.4499396863691194, 0.4469240048250904, 0.39897466827503014, 0.41375150784077197,0.36851628468033776, 0.19963811821471653]
-    # newcasesprediction = pd.DataFrame(A)
+    A=[0.189686,	0.4499396863691194, 0.4469240048250904, 0.39897466827503014, 0.41375150784077197,0.36851628468033776, 0.19963811821471653]
+    newcasesprediction = pd.DataFrame(A)
     
     current_batch = trainset[-seq_size:]
     forecast = pd.DataFrame()
@@ -200,18 +200,18 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         # ##### Create New Day Values #####
         
         #### Total Cases ####
-        # per_mil_tot = current_pred * 0.096 #Calculate Total Caces per million 
+        per_mil_tot = current_pred * 0.096 #Calculate Total Caces per million 
         
         #### New Cases ####
         new_cases= current_pred-predictiondata.iloc[len(predictiondata.index)-1,0] # Calculate  new cases         
-        # newcasesprediction.loc[len(newcasesprediction.index)] = [new_cases] #append new cases 
+        newcasesprediction.loc[len(newcasesprediction.index)] = [new_cases] #append new cases 
         
-        # per_mil_new = new_cases*0.096  #Calculate New per million 
+        per_mil_new = new_cases*0.096  #Calculate New per million 
         
         
-        # smoothednew = newcasesprediction.rolling(window=7).mean()
-        # smoothednew = float( smoothednew.iloc[6+i])
-        # per_mil_smoothed_new= smoothednew * 0.096  #Calculate Smoothed Permillion New Cases 
+        smoothednew = newcasesprediction.rolling(window=7).mean()
+        smoothednew = float( smoothednew.iloc[6+i])
+        per_mil_smoothed_new= smoothednew * 0.096  #Calculate Smoothed Permillion New Cases 
         
         # print("\n ******************** \n")
         # print(current_pred)
@@ -221,7 +221,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         
         
         #Add New Day Values 
-        predictiondata.loc[len(predictiondata.index)] = [current_pred , new_cases]#,totalpm ]  # Fill the two first collumns of the Dataframe 
+        predictiondata.loc[len(predictiondata.index)] = [current_pred , per_mil_tot]#,totalpm ]  # Fill the two first collumns of the Dataframe 
         # print(predictiondata)
 
         # predictiondata['Percentage'] = predictiondata['Daily_Confirmed_Cases'].pct_change() #Calculate Percentage 
@@ -351,7 +351,7 @@ flist = featcombos('cases', titles, combos)
 
 # feature_list =[flist[0][0]]
 
-feature_list =flist[0]
+feature_list =flist[2]
 feature_list = list(itertools.chain(feature_list))
 n_features = len(feature_list)
 
