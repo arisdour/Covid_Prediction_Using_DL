@@ -367,8 +367,6 @@ train_set, validation_set, test_set = split_data( greece, seq_size)
 #Scaling 
 scaler = MinMaxScaler() 
 scaler.fit(train_set)
-
-
 train_set=pd.DataFrame(scaler.transform(train_set))
 train_set=train_set.set_axis(feature_list, axis=1, inplace=False)
 
