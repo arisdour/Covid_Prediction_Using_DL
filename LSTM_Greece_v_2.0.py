@@ -112,7 +112,7 @@ def plotloss(mod, name=""):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig("Plots/loss_model" + name +".jpeg"  )
+    plt.savefig("Plots\loss_model" + name +".jpeg"  )
     plt.show()
 
 
@@ -124,7 +124,7 @@ def plotprediction(ypredict , name=""):
     plt.xlabel('Date')
     plt.ylabel('Cases')
     plt.legend()
-    plt.savefig("Plots/pred" + name +".jpeg"  )
+    plt.savefig("Plots\pred" + name +".jpeg"  )
     plt.show()
    
 
@@ -161,7 +161,7 @@ def model_create(nodes, seq_size , features,lrate):
 
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
-    model.save('Models/model_' + str(i) + '.h5', overwrite=True)
+    model.save('Models\model_' + str(i) + '.h5', overwrite=True)
     plotloss(history,str(i))
     return model
 
@@ -221,7 +221,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         
         
         #Add New Day Values 
-        predictiondata.loc[len(predictiondata.index)] = [current_pred , per_mil_tot]#,totalpm ]  # Fill the two first collumns of the Dataframe 
+        predictiondata.loc[len(predictiondata.index)] = [current_pred , smoothednew , per_mil_smoothed_new ]  # Fill the two first collumns of the Dataframe 
         # print(predictiondata)
 
         # predictiondata['Percentage'] = predictiondata['Daily_Confirmed_Cases'].pct_change() #Calculate Percentage 
@@ -321,7 +321,7 @@ def find_best_model(mape):
     mape = pd.DataFrame(mape)
     min = mape.idxmin()
     j = min[0]
-    best_model = keras.models.load_model(r"Models/model_" + str(j) + ".h5")
+    best_model = keras.models.load_model(r"Models\model_" + str(j) + ".h5")
     print("Best Model is :model_" + str(j) + ".h5")
     return best_model
 
@@ -338,7 +338,7 @@ times =10
 # learning_rate = (0.001,0.0001,0.0005 )
 # epochs = (60 , 75 , 150)
 # nodes = (18,20,22,25,30,35,44,59,88)
-combos=2
+combos=3
 
 
 
@@ -351,7 +351,7 @@ flist = featcombos('cases', titles, combos)
 
 # feature_list =[flist[0][0]]
 
-feature_list =flist[2]
+feature_list =flist[6]
 feature_list = list(itertools.chain(feature_list))
 n_features = len(feature_list)
 
@@ -435,7 +435,7 @@ metrics =metrics.append( metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']
 
 
 # #Save Results
-metrics.to_csv("Results/Valdation_Results_for_"+ str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
+metrics.to_csv("Results\Valdation_Results_for_"+ str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
 
 
@@ -447,7 +447,7 @@ bestmodel = find_best_model(MAPE_4)
 
 
 bestmodel.fit_generator(val_generator, epochs=30, verbose=1) 
-bestmodel.save(r"Models/Final_model_for_"+ str(feature_list) + ".h5")
+bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
 
 forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
@@ -491,7 +491,7 @@ rmse= float("{:.3f}".format(rmse))
 finalresults=pd.DataFrame({"MAE": [mae],"MAPE 1 Day" : [mape_1day] , "MAPE 3 Days" :[mape_3days],"MAPE 7 Days " :[mape_7days] , "MAPE 14 Days" :[mape_14days], "MAPE 30 Days" :[mape_30days],"MAPE 60 Days" :[mape_60days],"MAPE":[mape], "RMSE": [rmse], "MSE":[mse]})
 
 
-finalresults.to_csv("Results/Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
+finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
 
 
