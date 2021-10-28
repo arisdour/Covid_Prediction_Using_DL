@@ -131,12 +131,9 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 def model_create(nodes, seq_size , features,lrate):
     opt = keras.optimizers.Adam(learning_rate=lrate)
     model = Sequential()
-    model.add(LSTM(nodes, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(Dropout(0.1))
-    # model.add(LSTM(nodes ,return_sequences=True))
-    # model.add(Dropout(0.1))
-    model.add(LSTM(nodes))
-    model.add(Dropout(0.1))
+    model.add(LSTM(59, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(Dropout(nodes))
+    model.add(LSTM(59 , return_sequences=False))
     model.add(Dense(1))
     model.compile(optimizer=opt, loss='mean_squared_error')
     model.summary()
@@ -259,6 +256,13 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
 
     return 
 
+def find_best_model(mape):
+    mape = pd.DataFrame(mape)
+    min = mape.idxmin()
+    j = min[0]
+    best_model = keras.models.load_model(r"Models\model_" + str(j) + ".h5")
+    print("Best Model is :model_" + str(j) + ".h5")
+    return best_model
 
 
 
@@ -272,20 +276,24 @@ n_features = len(feature_list)
 
 seq_size = 3
 
-times =10 
-learning_rate = (0.001,0.0001,0.0005 )
-epochs = (60 , 75 , 150)
-nodes = (18,20,22,25,30,35,44,59,88)
+times =5
+learning_rate = (0.001 , 0.0001)        #,0.0005 , 0.001)
+epochs = (150 , 60 , 75)
+dropout = (0. ,0.1 , 0.2)               #Nodes pane sto Dropout
 
 
 
-# times=2
-# learning_rate = (0.1 ,0.7)
-# epochs = (1 ,2)
-# nodes = (1,2)
+# learning_rate = (0.1,0.5 , 0.15)
+# epochs = (1 , 2 , 3)
+# dropout = (0. ,0.1 , 0.2)
+# nodes = (0. ,0.1 , 0.2)   # (18,20,22,25,30,35,44,59,88)
 
 
 
+
+
+
+Hyperparameters= Hyper(learning_rate, epochs, dropout ,times )
 
 
 
@@ -331,23 +339,16 @@ MAPE_4_Next_day = []
 
 
 
-Hyperparameters= Hyper(learning_rate, epochs, nodes ,times )
-
-
-
-
-
-
 start = time.time()
-for i in range(10):
-    nodes , lr , epochs = 59,0.0001 , 150
+for i in range(len(Hyperparameters)):
+# for i in range(Hyperparameters):
+    dropout , lr , epochs = Hyperparameters[i]
     
-    experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
+    experiments(i, dropout, scaler, seq_size, epochs, n_features, train_generator, val_generator,
                       validation_set, train_set, inv_val, inv_test, dates , lr )
 
-
-
 end = time.time()
+
 
 ###############################################################################
 hours, rem = divmod(end - start, 3600)
@@ -366,12 +367,61 @@ metrics = metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']).mean()
 
 
 #Save Results
-metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.3f",index=True, header=True)
+# metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.5f",index=True, header=True)
 
 
 
 
 
+# bestmodel = find_best_model(MAPE_4)
+
+
+# bestmodel.fit_generator(val_generator, epochs=35, verbose=1) 
+# bestmodel.save(r"Models\Final_model_for_"+ a + ".h5")
+
+# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+
+# plotprediction(forecastf[:7] , "iction_7_day_prediction")
+# plotprediction(forecastf[:14] , "iction_14_day_prediction")
+# plotprediction(forecastf[:30] , "iction_30_day_prediction")
+# plotprediction(forecastf[:60] , "iction_60_day_prediction")
+# plotprediction(forecastf[:90] , "iction_90_day_prediction")
+
+
+# mae = mean_absolute_error(forecastf['Actual'], forecastf['Prediction'])
+# mae= float("{:.3f}".format(mae))
+
+# mape = mean_absolute_percentage_error(forecastf['Actual'], forecastf['Prediction'])
+# mape= float("{:.3f}".format(mape))
+
+# mape_1day = mean_absolute_percentage_error(forecastf['Actual'][:1], forecastf['Prediction'][:1])
+# mape_1day= float("{:.3f}".format(mape_1day))
+
+
+# mape_3days = mean_absolute_percentage_error(forecastf['Actual'][:3], forecastf['Prediction'][:3])
+# mape_3days= float("{:.3f}".format(mape_3days))
+
+# mape_7days = mean_absolute_percentage_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
+# mape_7days= float("{:.3f}".format(mape_7days))
+                  
+# mape_14days = mean_absolute_percentage_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
+# mape_14days= float("{:.3f}".format(mape_14days))
+
+# mape_30days = mean_absolute_percentage_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
+# mape_30days= float("{:.3f}".format(mape_30days))
+
+# mape_60days = mean_absolute_percentage_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
+# mape_60days= float("{:.3f}".format(mape_60days))
+
+# mse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'])
+# mse= float("{:.3f}".format(mse))
+# rmse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'], squared=False)
+# rmse= float("{:.3f}".format(rmse))
+
+# finalresults=pd.DataFrame({"MAE": [mae],"MAPE 1 Day" : [mape_1day] , "MAPE 3 Days" :[mape_3days],"MAPE 7 Days " :[mape_7days] , "MAPE 14 Days" :[mape_14days], "MAPE 30 Days" :[mape_30days],"MAPE 60 Days" :[mape_60days],"MAPE":[mape], "RMSE": [rmse], "MSE":[mse]})
+
+
+# finalresults.to_csv("Results\Final_Results_for_" + a +".csv", float_format="%.5f",index=True, header=True)
 
 
 

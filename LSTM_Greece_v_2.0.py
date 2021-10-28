@@ -112,7 +112,7 @@ def plotloss(mod, name=""):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig("Plots/loss_model" + name +".jpeg"  )
+    plt.savefig("Plots\loss_model" + name +".jpeg"  )
     plt.show()
 
 
@@ -124,7 +124,7 @@ def plotprediction(ypredict , name=""):
     plt.xlabel('Date')
     plt.ylabel('Cases')
     plt.legend()
-    plt.savefig("Plots/pred" + name +".jpeg"  )
+    plt.savefig("Plots\pred" + name +".jpeg"  )
     plt.show()
    
 
@@ -161,7 +161,7 @@ def model_create(nodes, seq_size , features,lrate):
 
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
-    model.save('Models/model_' + str(i) + '.h5', overwrite=True)
+    model.save('Models\model_' + str(i) + '.h5', overwrite=True)
     plotloss(history,str(i))
     return model
 
@@ -322,7 +322,7 @@ def find_best_model(mape):
     mape = pd.DataFrame(mape)
     min = mape.idxmin()
     j = min[0]
-    best_model = keras.models.load_model(r"Models/model_" + str(j) + ".h5")
+    best_model = keras.models.load_model(r"Models\model_" + str(j) + ".h5")
     print("Best Model is :model_" + str(j) + ".h5")
     return best_model
 
@@ -448,7 +448,7 @@ bestmodel = find_best_model(MAPE_4)
 
 
 bestmodel.fit_generator(val_generator, epochs=30, verbose=1) 
-bestmodel.save(r"Models/Final_model_for_"+ str(feature_list) + ".h5")
+bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
 
 forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
