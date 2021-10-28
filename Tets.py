@@ -8,6 +8,7 @@ from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dropout
 
 
 from sklearn.preprocessing import MinMaxScaler
@@ -130,7 +131,12 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 def model_create(nodes, seq_size , features,lrate):
     opt = keras.optimizers.Adam(learning_rate=lrate)
     model = Sequential()
-    model.add(LSTM(nodes, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    model.add(LSTM(nodes, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(Dropout(0.1))
+    # model.add(LSTM(nodes ,return_sequences=True))
+    # model.add(Dropout(0.1))
+    model.add(LSTM(nodes))
+    model.add(Dropout(0.1))
     model.add(Dense(1))
     model.compile(optimizer=opt, loss='mean_squared_error')
     model.summary()
@@ -140,7 +146,7 @@ def model_create(nodes, seq_size , features,lrate):
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
     model.save('Models\model_' + str(i) + '.h5', overwrite=True)
-    # plotloss(history,str(i))
+    plotloss(history,str(i))
     return model
 
 
@@ -175,7 +181,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
     
@@ -218,7 +224,7 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
     experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-    # plotprediction(forecast ,str(i))
+    plotprediction(forecast ,str(i))
     
     
     ##################### Metrics ######################
@@ -258,7 +264,7 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
 
 Windeos_loc="owid-covid-data.csv"
 
-feature_list=["total_deaths"]
+feature_list=["total_cases"]
 
 a=str(feature_list)
 
@@ -330,33 +336,18 @@ Hyperparameters= Hyper(learning_rate, epochs, nodes ,times )
 
 
 
-#########################################################
 
-text='🔔🔔🔔 Started 🔔🔔🔔 \n'
-telegram_bot_sendtext(text)
-#########################################################
 
 start = time.time()
-for i in range(len(Hyperparameters)):
-    nodes , lr , epochs = Hyperparameters[i]
+for i in range(10):
+    nodes , lr , epochs = 59,0.0001 , 150
     
     experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
                       validation_set, train_set, inv_val, inv_test, dates , lr )
-    #########################################################
-    percentage = (i+1)*100 /len(Hyperparameters)
-    text='Currently in: ' + str(percentage) + ' %\n'
-    telegram_bot_sendtext(text)
-    #########################################################
+
 
 
 end = time.time()
-
-#########################################################
-
-text='🔔🔔🔔 Finished 🔔🔔🔔 \n'
-telegram_bot_sendtext(text)
-#########################################################
-
 
 ###############################################################################
 hours, rem = divmod(end - start, 3600)
