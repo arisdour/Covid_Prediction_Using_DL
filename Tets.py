@@ -140,9 +140,9 @@ def model_create(nodes, seq_size , features,lrate):
 
 
 def model_train(i, model, traingenerator, valgenerator, ep):
-    history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep ,verbose=1)
-    # model.save('Models\model_' + str(i) + '.h5', overwrite=True)
-    # plotloss(history,str(i))
+    history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
+    model.save('Models\model_' + str(i) + '.h5', overwrite=True)
+    plotloss(history,str(i))
     return model
 
 
@@ -220,7 +220,7 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
     experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-    # plotprediction(forecast ,str(i))
+    plotprediction(forecast ,str(i))
     
     
     ##################### Metrics ######################
