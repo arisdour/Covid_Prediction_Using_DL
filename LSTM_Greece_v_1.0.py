@@ -14,8 +14,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
 
-
-
+from itertools  import chain ,product
 ########################## Telegram Bot   ###################################
 
 import requests
@@ -40,8 +39,12 @@ def createdata(location , feature_list):
     Greece= data[data.location =='Greece'].reset_index(drop='True')
     Greece = Greece.dropna(how='all', axis=1)
     Greece_total = Greece.iloc[7:498, 3:40].reset_index(drop='True')
-    dates=pd.DataFrame(Greece_total['date']).reset_index(drop=True)
-    Greece=Greece_total[(feature_list)].reset_index(drop=True)
+    
+    Greece=Greece_total[(feature_list)]
+    Greece["date"] = Greece_total['date']
+    Greece=Greece.dropna(axis=0)
+    dates=pd.DataFrame(Greece['date']).reset_index(drop=True)
+    Greece=Greece[(feature_list)].reset_index(drop=True)
     
     return dates , Greece , Greece_total
 
@@ -50,7 +53,6 @@ def mean_absolute_percentage_error(y_true, y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
 def split_data(data, sequence):
-
     train_set = data[:355].reset_index(drop=True)
     validation_set = data[355 - sequence:369].reset_index(drop=True)
     test_set = data[369 - sequence:].reset_index(drop=True) 
@@ -107,7 +109,10 @@ def plotprediction(ypredict , name=""):
 
 def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogdata, dates):
     
-    date_index = pd.date_range('26/02/2020', periods=491, freq='D')
+    drange =dates.loc[0]
+    drange=pd.to_datetime(drange["date"])
+    date_index = pd.date_range(drange , periods=len(dates), freq='D')
+
     
     
     set1 = pd.DataFrame(sc.inverse_transform(trainset),index=date_index[0:len(trainset)])
@@ -171,13 +176,42 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
     
     
     return forecast
 
+
+
+
+
+
+
+
+learning_rate = (0.001,0.0001,0.0005 )
+epochs = (60 , 75 , 150)
+nodes = (18,20,22,25,30,35,44,59,88)
+
+hp1 = list(product(learning_rate , epochs ))
+Hyperparameters = list (product(hp1 , nodes))
+
+# test = Hyperparameters[0]
+
+# Hyperparameters = list(chain.from_iterable(Hyperparameters))
+Hyperparameters= pd.DataFrame(Hyperparameters).rename(columns={0: "A", 1: "Nodes"})
+
+
+
+
+Hyperparameters[['Learning Rate' , 'Epochs']]= pd.DataFrame(Hyperparameters['A'].tolist(), index=Hyperparameters.index)
+Hyperparameters =Hyperparameters.drop(['A'], axis=1)
+
+Hyperparameters= list(Hyperparameters.itertuples(index=False, name=None))
+
+
+nodes , lr , epochs = Hyperparameters[0]
 
 ########################## Cluster Fuck  LSTM ##############################################
 
@@ -218,12 +252,6 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
         
         
         
-        #########################################################
-        percentage = (i+1)*100 /times
-        text='Currently in: ' + str(percentage) + ' %\n'
-        telegram_bot_sendtext(text)
-        #########################################################
-        
         
     metrics = pd.DataFrame(
         {'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
@@ -252,13 +280,12 @@ def find_best_model(mape):
 # def main():
     
 Windeos_loc="owid-covid-data.csv"
-feature_list=["total_cases"]
+feature_list=["total_deaths"]
 a=str(feature_list)
 n_features = len(feature_list)
-print(a)
-different_nodes = 44
+different_nodes = 30
 seq_size = 3
-epochs = 75
+epochs = 60
 rep = 10
 
 dates,greece , Greece_total =createdata(Windeos_loc,feature_list)
@@ -295,13 +322,21 @@ MAPE_4_3days = []
 MAPE_4_7days = []
 MAPE_4_Next_day = []
 
+
+
+
+
 start = time.time()
 nodes = different_nodes
 times = rep
+
+
+
 metrics = experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
                       validation_set, train_set, inv_val, inv_test, dates)
-end = time.time()
 
+
+end = time.time()
 hours, rem = divmod(end - start, 3600)
 minutes, seconds = divmod(rem, 60)
 print("{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
@@ -309,7 +344,7 @@ print("{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
 
 
 #Save Results
-metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.3f",index=True, header=True)
+metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.5f",index=True, header=True)
 
 bestmodel = find_best_model(MAPE_4)
 
@@ -359,17 +394,7 @@ rmse= float("{:.3f}".format(rmse))
 finalresults=pd.DataFrame({"MAE": [mae],"MAPE 1 Day" : [mape_1day] , "MAPE 3 Days" :[mape_3days],"MAPE 7 Days " :[mape_7days] , "MAPE 14 Days" :[mape_14days], "MAPE 30 Days" :[mape_30days],"MAPE 60 Days" :[mape_60days],"MAPE":[mape], "RMSE": [rmse], "MSE":[mse]})
 
 
-finalresults.to_csv("Results\Final_Results_for_" + a +".csv", float_format="%.3f",index=True, header=True)
-
-
-
-
-
-
-
-
-
-
+finalresults.to_csv("Results\Final_Results_for_" + a +".csv", float_format="%.5f",index=True, header=True)
 
 
 

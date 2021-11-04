@@ -131,9 +131,8 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 def model_create(nodes, seq_size , features,lrate):
     opt = keras.optimizers.Adam(learning_rate=lrate)
     model = Sequential()
-    model.add(LSTM(59, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(Dropout(nodes))
-    model.add(LSTM(59 , return_sequences=False))
+    model.add(LSTM(nodes, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(LSTM(nodes , return_sequences=False))
     model.add(Dense(1))
     model.compile(optimizer=opt, loss='mean_squared_error')
     model.summary()
@@ -276,24 +275,24 @@ n_features = len(feature_list)
 
 seq_size = 3
 
-times =5
-learning_rate = (0.001 , 0.0001)        #,0.0005 , 0.001)
-epochs = (150 , 60 , 75)
-dropout = (0. ,0.1 , 0.2)               #Nodes pane sto Dropout
+times =10
+learning_rate = (0.0001 , 0.001)        #,0.0005 , 0.001)
+epochs = (150  ,60, 75)
+# dropout = (0. ,0.1)               #Nodes pane sto Dropout
+nodes = (44,88)   # (18,20,22,25,30,35,44,59,88)
 
 
 
 # learning_rate = (0.1,0.5 , 0.15)
 # epochs = (1 , 2 , 3)
 # dropout = (0. ,0.1 , 0.2)
-# nodes = (0. ,0.1 , 0.2)   # (18,20,22,25,30,35,44,59,88)
 
 
 
 
 
 
-Hyperparameters= Hyper(learning_rate, epochs, dropout ,times )
+Hyperparameters= Hyper(learning_rate, epochs, nodes ,times )
 
 
 
@@ -341,10 +340,9 @@ MAPE_4_Next_day = []
 
 start = time.time()
 for i in range(len(Hyperparameters)):
-# for i in range(Hyperparameters):
-    dropout , lr , epochs = Hyperparameters[i]
+    nd , lr , epochs = Hyperparameters[i]
     
-    experiments(i, dropout, scaler, seq_size, epochs, n_features, train_generator, val_generator,
+    experiments(i, nd, scaler, seq_size, epochs, n_features, train_generator, val_generator,
                       validation_set, train_set, inv_val, inv_test, dates , lr )
 
 end = time.time()
@@ -366,8 +364,8 @@ metrics = metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']).mean()
 
 
 
-#Save Results
-# metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.5f",index=True, header=True)
+# Save Results
+metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.5f",index=True, header=True)
 
 
 
