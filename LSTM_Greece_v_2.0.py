@@ -152,9 +152,7 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 def model_create(nodes, seq_size , features,lrate):
     opt = keras.optimizers.Adam(learning_rate=lrate)
     model = Sequential()
-    model.add(LSTM(128, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(LSTM(64 , return_sequences=True))
-    model.add(LSTM(32))
+    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
     model.compile(optimizer=opt, loss='mean_squared_error')
     model.summary()
@@ -178,7 +176,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
     
     
-    A=[0.189686,	0.4499396863691194, 0.4469240048250904, 0.39897466827503014, 0.41375150784077197,0.36851628468033776, 0.19963811821471653]
+    A=[	0.4499396863691194, 0.4469240048250904, 0.39897466827503014, 0.41375150784077197,0.36851628468033776, 0.19963811821471653]
     newcasesprediction = pd.DataFrame(A)
     
     current_batch = trainset[-seq_size:]
@@ -223,7 +221,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         
         
         #Add New Day Values 
-        predictiondata.loc[len(predictiondata.index)] = [current_pred , new_cases , smoothednew,per_mil_tot]
+        predictiondata.loc[len(predictiondata.index)] = [current_pred , new_cases]
                                                     # Fill the two first collumns of the Dataframe 
         # print(predictiondata)
 
@@ -338,28 +336,27 @@ def find_best_model(mape):
 
 seq_size = 3
 times =10
-# learning_rate = (0.001,0.0001,0.0005 )
-# epochs = (60 , 75 , 150)
-# nodes = (18,20,22,25,30,35,44,59,88)
-combos=3
-nodes=44
+combos=2
+nodes=2
 lr = 0.0001
-epochs=150
+epochs=75
 
 
 
 loc="owid-covid-data.csv"
-
 Greece_total , titles =readdata(loc)
-
 flist = featcombos('cases', titles, combos)
 
-
-# feature_list =[flist[0][0]]
 
 feature_list =flist[0]
 feature_list = list(itertools.chain(feature_list))
 n_features = len(feature_list)
+
+Greece_total['new_cases_smoothed']= Greece_total['new_cases'].rolling(window=7).mean()
+Greece_total['new_deaths_smoothed']= Greece_total['new_deaths'].rolling(window=7).mean()
+
+Greece_total['new_cases_smoothed_per_million']= Greece_total['new_cases_smoothed']*0.096
+Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
 
 
 
@@ -437,7 +434,7 @@ metrics =metrics.append( metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']
 
 
 
-# #Save Results
+#Save Results
 metrics.to_csv("Results/Valdation_Results_for_"+ str(feature_list) +".csv", float_format="%.5f",index=True, header=True)
 
 
@@ -446,55 +443,55 @@ metrics.to_csv("Results/Valdation_Results_for_"+ str(feature_list) +".csv", floa
 
 
 
-# bestmodel = find_best_model(MAPE_4)
+bestmodel = find_best_model(MAPE_4)
 
 
-# bestmodel.fit_generator(val_generator, epochs=30, verbose=1) 
-# bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
+bestmodel.fit_generator(val_generator, epochs=30, verbose=1) 
+bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
 
-# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
-# plotprediction(forecastf[:7] , "iction_7_day_prediction")
-# plotprediction(forecastf[:14] , "iction_14_day_prediction")
-# plotprediction(forecastf[:30] , "iction_30_day_prediction")
-# plotprediction(forecastf[:60] , "iction_60_day_prediction")
-# plotprediction(forecastf[:90] , "iction_90_day_prediction")
-
-
-# mae = mean_absolute_error(forecastf['Actual'], forecastf['Prediction'])
-# mae= float("{:.3f}".format(mae))
-
-# mape = mean_absolute_percentage_error(forecastf['Actual'], forecastf['Prediction'])
-# mape= float("{:.3f}".format(mape))
-
-# mape_1day = mean_absolute_percentage_error(forecastf['Actual'][:1], forecastf['Prediction'][:1])
-# mape_1day= float("{:.3f}".format(mape_1day))
+plotprediction(forecastf[:7] , "iction_7_day_prediction")
+plotprediction(forecastf[:14] , "iction_14_day_prediction")
+plotprediction(forecastf[:30] , "iction_30_day_prediction")
+plotprediction(forecastf[:60] , "iction_60_day_prediction")
+plotprediction(forecastf[:90] , "iction_90_day_prediction")
 
 
-# mape_3days = mean_absolute_percentage_error(forecastf['Actual'][:3], forecastf['Prediction'][:3])
-# mape_3days= float("{:.3f}".format(mape_3days))
+mae = mean_absolute_error(forecastf['Actual'], forecastf['Prediction'])
+mae= float("{:.3f}".format(mae))
 
-# mape_7days = mean_absolute_percentage_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
-# mape_7days= float("{:.3f}".format(mape_7days))
+mape = mean_absolute_percentage_error(forecastf['Actual'], forecastf['Prediction'])
+mape= float("{:.3f}".format(mape))
+
+mape_1day = mean_absolute_percentage_error(forecastf['Actual'][:1], forecastf['Prediction'][:1])
+mape_1day= float("{:.3f}".format(mape_1day))
+
+
+mape_3days = mean_absolute_percentage_error(forecastf['Actual'][:3], forecastf['Prediction'][:3])
+mape_3days= float("{:.3f}".format(mape_3days))
+
+mape_7days = mean_absolute_percentage_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
+mape_7days= float("{:.3f}".format(mape_7days))
                   
-# mape_14days = mean_absolute_percentage_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
-# mape_14days= float("{:.3f}".format(mape_14days))
+mape_14days = mean_absolute_percentage_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
+mape_14days= float("{:.3f}".format(mape_14days))
 
-# mape_30days = mean_absolute_percentage_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
-# mape_30days= float("{:.3f}".format(mape_30days))
+mape_30days = mean_absolute_percentage_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
+mape_30days= float("{:.3f}".format(mape_30days))
 
-# mape_60days = mean_absolute_percentage_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
-# mape_60days= float("{:.3f}".format(mape_60days))
+mape_60days = mean_absolute_percentage_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
+mape_60days= float("{:.3f}".format(mape_60days))
 
-# mse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'])
-# mse= float("{:.3f}".format(mse))
-# rmse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'], squared=False)
-# rmse= float("{:.3f}".format(rmse))
+mse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'])
+mse= float("{:.3f}".format(mse))
+rmse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'], squared=False)
+rmse= float("{:.3f}".format(rmse))
 
-# finalresults=pd.DataFrame({"MAE": [mae],"MAPE 1 Day" : [mape_1day] , "MAPE 3 Days" :[mape_3days],"MAPE 7 Days " :[mape_7days] , "MAPE 14 Days" :[mape_14days], "MAPE 30 Days" :[mape_30days],"MAPE 60 Days" :[mape_60days],"MAPE":[mape], "RMSE": [rmse], "MSE":[mse]})
+finalresults=pd.DataFrame({"MAE": [mae],"MAPE 1 Day" : [mape_1day] , "MAPE 3 Days" :[mape_3days],"MAPE 7 Days " :[mape_7days] , "MAPE 14 Days" :[mape_14days], "MAPE 30 Days" :[mape_30days],"MAPE 60 Days" :[mape_60days],"MAPE":[mape], "RMSE": [rmse], "MSE":[mse]})
 
 
-# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
+finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
 
 
