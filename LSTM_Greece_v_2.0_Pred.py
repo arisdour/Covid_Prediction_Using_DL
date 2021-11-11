@@ -112,7 +112,7 @@ def plotloss(mod, name=""):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig("Plots/loss_model" + name +".jpeg"  )
+    # plt.savefig("Plots/loss_model" + name +".jpeg"  )
     plt.show()
 
 
@@ -124,7 +124,7 @@ def plotprediction(ypredict , name=""):
     plt.xlabel('Date')
     plt.ylabel('Cases')
     plt.legend()
-    plt.savefig("Plots/pred" + name +".jpeg"  )
+    # plt.savefig("Plots/pred" + name +".jpeg"  )
     plt.show()
    
 
@@ -152,7 +152,7 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 def model_create(nodes, seq_size , features,lrate):
     # opt = keras.optimizers.Adam(learning_rate=lrate)
     model = Sequential()
-    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -161,8 +161,8 @@ def model_create(nodes, seq_size , features,lrate):
 
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
-    model.save('Models/model_' + str(i) + '.h5', overwrite=True)
-    plotloss(history,str(i))
+    # model.save('Models/model_' + str(i) + '.h5', overwrite=True)
+    # plotloss(history,str(i))
     return model
 
 
@@ -176,7 +176,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
     
     
-    A=[	1492, 1482, 1323, 1372, 1222, 662]
+    A=[	30, 23, 40, 35, 32, 41]
     newcasesprediction = pd.DataFrame(A)
     
     current_batch = trainset[-seq_size:]
@@ -194,7 +194,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         
         current_pred = model.predict(current_batch) # Make a prediction 
         total_cases = float(current_pred[0]) #Convert Prediction to integer 
-        total_cases= total_cases /5.80966e-06 #De-scale
+        total_cases= total_cases /0.000149254 #De-scale
         
         
         
@@ -206,7 +206,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         
         #### New Cases ####
         
-        new_cases= total_cases-(predictiondata.iloc[len(predictiondata.index)-1,0])/5.80966e-06 # Calculate  new casesDe-scaled
+        new_cases= total_cases-(predictiondata.iloc[len(predictiondata.index)-1,0])/0.000149254 # Calculate  new casesDe-scaled
         
         new_cases_per_million = new_cases*0.096  #Calculate New per million 
         
@@ -220,21 +220,21 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         
         #Scale Back 
         
-        total_cases = total_cases * 5.80966e-06
-        new_cases = new_cases * 0.000301568
-        new_cases_smoothed = new_cases_smoothed * 0.000374211
-        total_cases_per_million = total_cases_per_million * 5.82583e-05
-        new_cases_per_million = new_cases_per_million * 0.00314326
-        new_cases_smoothed_pre_million = new_cases_smoothed_pre_million * 0.00389804
+        total_cases = total_cases * 0.000149254
+        new_cases = new_cases * 0.00826446
+        new_cases_smoothed = new_cases_smoothed * 0.00992908
+        total_cases_per_million = total_cases_per_million * 0.00155568
+        new_cases_per_million = new_cases_per_million *0.0861401
+        new_cases_smoothed_pre_million = new_cases_smoothed_pre_million * 0.103428
         
 
         
         
         #Add New Day Values 
-        Featnames = ['total_cases','new_cases','new_cases_smoothed','total_cases_per_million','new_cases_per_million','new_cases_smoothed_per_million']
+        Featnames = ['total_deaths','new_deaths','new_deaths_smoothed','total_deaths_per_million','new_deaths_per_million','new_deaths_smoothed_per_million']
         featval = [total_cases,new_cases,new_cases_smoothed,total_cases_per_million,new_cases_per_million,new_cases_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
-        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ,dictionary[feature_list[2]], dictionary[feature_list[3] ]]
+        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ]
         
         predictiondata.loc[len(predictiondata.index)] = usedval
     
@@ -244,7 +244,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
     
@@ -345,10 +345,10 @@ def find_best_model(mape):
 
 seq_size = 3
 times =10
-combos=4
+combos=2
 nodes=2
 lr = 0.0001
-epochs=75
+epochs=60
 
 
 
@@ -369,11 +369,11 @@ MAPE_4_Next_day = []
 Features = []
 loc="owid-covid-data.csv"
 Greece_total , titles =readdata(loc)
-flist = featcombos('cases', titles, combos)
+flist = featcombos('deaths', titles, combos)
 
 
 flist=flist*times
-flist=[ x for x in flist if "total_cases"  in x ]
+flist=[ x for x in flist if "total_deaths"  in x ]
 
 
 # flist=flist[:1]
@@ -391,9 +391,7 @@ for i in range(len(flist)):
     Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
 
 
-
     dates,greece = createdata(Greece_total ,feature_list )
-    
     
     
     
@@ -412,26 +410,12 @@ for i in range(len(flist)):
     test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
     
     
-    train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
-                                                                    test_set)
-    # a =train_generator[3]
+    train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set, test_set)
     
-    inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,
-                                                            dates)
+    inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,dates)
 
-
-
-# Hyperparameters= Hyper(learning_rate, epochs, nodes ,times )
-
-
-    # nodes , lr , epochs = Hyperparameters[i]
     experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
                       validation_set, train_set, inv_val, inv_test, dates , lr )
-
-
-
-
-
 
 
 
@@ -442,8 +426,8 @@ metrics = pd.DataFrame(
 
 metrics=metrics.sort_values(by=['Feat']).reset_index(drop=True)
 
-metrics[['Feature 1','Feature 2', 'Feature 3' , 'Feature 4']] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
-metrics1 = metrics.groupby(['Feature 1', 'Feature 2' , 'Feature 3' , 'Feature 4']).mean()
+metrics[['Feature 1','Feature 2']] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
+metrics1 = metrics.groupby(['Feature 1', 'Feature 2' ]).mean()
  
 
 # #Save Results
@@ -453,147 +437,5 @@ metrics1.to_csv("AverageValdation_Results_for_"+ str(len(feature_list)) +".csv",
 
 
 
-# bestmodel = find_best_model(MAPE_4)
-
-
-# bestmodel.fit_generator(val_generator, epochs=60, verbose=1) 
-# bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
-
-# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
-
-# plotprediction(forecastf[:7] , "iction_7_day_prediction")
-# plotprediction(forecastf[:14] , "iction_14_day_prediction")
-# plotprediction(forecastf[:30] , "iction_30_day_prediction")
-# plotprediction(forecastf[:60] , "iction_60_day_prediction")
-# plotprediction(forecastf[:90] , "iction_90_day_prediction")
-
-# Days_7= []
-# Days_14= []
-# Days_30= []
-# Days_60= []
-# Days_90= []
-
-
-# ###############################################################################
-
-# mae = mean_absolute_error(forecastf['Actual'], forecastf['Prediction'])
-# mae= float("{:.3f}".format(mae))
-# Days_90.append(mae)
-
-# mae_7days = mean_absolute_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
-# mae_7days= float("{:.3f}".format(mae_7days))
-# Days_7.append(mae_7days)
-
-
-# mae_14days = mean_absolute_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
-# mae_14days= float("{:.3f}".format(mae_14days))
-# Days_14.append(mae_14days)
-
-# mae_30days = mean_absolute_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
-# mae_30days= float("{:.3f}".format(mae_30days))
-# Days_30.append(mae_30days)
-
-# mae_60days = mean_absolute_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
-# mae_60days= float("{:.3f}".format(mae_60days))
-# Days_60.append(mae_60days)
-
-# ###############################################################################
-
-
-
-# ###############################################################################
-
-# mape = mean_absolute_percentage_error(forecastf['Actual'], forecastf['Prediction'])
-# mape= float("{:.3f}".format(mape))
-# Days_90.append(mape)
-
-
-# mape_7days = mean_absolute_percentage_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
-# mape_7days= float("{:.3f}".format(mape_7days))
-# Days_7.append(mape_7days)
-
-                  
-# mape_14days = mean_absolute_percentage_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
-# mape_14days= float("{:.3f}".format(mape_14days))
-# Days_14.append(mape_14days)
-
-
-# mape_30days = mean_absolute_percentage_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
-# mape_30days= float("{:.3f}".format(mape_30days))
-# Days_30.append(mape_30days)
-
-
-# mape_60days = mean_absolute_percentage_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
-# mape_60days= float("{:.3f}".format(mape_60days))
-# Days_60.append(mape_60days)
-
-
-# ###############################################################################
-
-
-# ###############################################################################
-
-# mse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'])
-# mse= float("{:.3f}".format(mse))
-# Days_90.append(mse)
-
-
-# mse_7days = mean_squared_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
-# mse_7days= float("{:.3f}".format(mse_7days))
-# Days_7.append(mse_7days)
-
-# mse_14days = mean_squared_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
-# mse_14days= float("{:.3f}".format(mse_14days))
-# Days_14.append(mse_14days)
-
-
-# mse_30days = mean_squared_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
-# mse_30days= float("{:.3f}".format(mse_30days))
-# Days_30.append(mse_30days)
-
-
-# mse_60days = mean_squared_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
-# mse_60days= float("{:.3f}".format(mse_60days))
-# Days_60.append(mse_60days)
-
-# ###############################################################################
-
-
-# ###############################################################################
-
-# rmse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'], squared=False)
-# rmse= float("{:.3f}".format(rmse))
-# Days_90.append(rmse)
-
-
-# rmse_7days = mean_squared_error(forecastf['Actual'][:7], forecastf['Prediction'][:7] , squared=False)
-# rmse_7days= float("{:.3f}".format(rmse_7days))
-# Days_7.append(rmse_7days)
-
-
-# rmse_14days = mean_squared_error(forecastf['Actual'][:14], forecastf['Prediction'][:14] , squared=False)
-# rmse_14days= float("{:.3f}".format(rmse_14days))
-# Days_14.append(rmse_14days)
-
-
-# rmse_30days = mean_squared_error(forecastf['Actual'][:30], forecastf['Prediction'][:30] , squared=False)
-# rmse_30days= float("{:.3f}".format(rmse_30days))
-# Days_30.append(rmse_30days)
-
-
-# rmse_60days = mean_squared_error(forecastf['Actual'][:60], forecastf['Prediction'][:60] , squared=False)
-# rmse_60days= float("{:.3f}".format(rmse_60days))
-# Days_60.append(rmse_60days)
-
-
-# ###############################################################################
-
-
-
-# Names = ['MAE' , 'MAPE' , 'MSE'  , 'RMSE']
-# finalresults=pd.DataFrame({" 7 Days" :Days_7, " 14 Days" :Days_14, " 30 Days" :Days_30," 60 Days" :Days_60," 90 Days":Days_90  , 'NAMES':Names })
-# finalresults=finalresults.set_index(['NAMES'])
-
-# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
 
