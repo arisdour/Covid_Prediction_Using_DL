@@ -234,7 +234,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         Featnames = ['total_cases','new_cases','new_cases_smoothed','total_cases_per_million','new_cases_per_million','new_cases_smoothed_per_million']
         featval = [total_cases,new_cases,new_cases_smoothed,total_cases_per_million,new_cases_per_million,new_cases_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
-        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ,dictionary[feature_list[2]] ]
+        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ,dictionary[feature_list[2]], dictionary[feature_list[3] ]]
         
         predictiondata.loc[len(predictiondata.index)] = usedval
     
@@ -345,10 +345,16 @@ def find_best_model(mape):
 
 seq_size = 3
 times =10
-combos=3
+combos=4
 nodes=2
 lr = 0.0001
 epochs=75
+
+
+
+
+
+
 Epochs = []
 LR = []
 node = []
@@ -435,34 +441,14 @@ metrics = pd.DataFrame(
       'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'Epochs' : Epochs})
 
 metrics=metrics.sort_values(by=['Feat']).reset_index(drop=True)
-df0 = metrics.iloc[: 10].mean()
-df1 = metrics.iloc[10:20].mean()
-df2 = metrics.iloc[20:30].mean()
-df3 = metrics.iloc[30:40].mean()
-df4 = metrics.iloc[40:50].mean()
-df5 = metrics.iloc[50:60].mean()
-df6 = metrics.iloc[60:70].mean()
-df7 = metrics.iloc[70:80].mean()
-df8 = metrics.iloc[80:90].mean()
-df9 = metrics.iloc[90:100].mean()
 
+metrics[['Feature 1','Feature 2', 'Feature 3' , 'Feature 4']] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
+metrics1 = metrics.groupby(['Feature 1', 'Feature 2' , 'Feature 3' , 'Feature 4']).mean()
+ 
 
-lolz = pd.concat([df0, df1 , df2 , df3, df4 , df5 , df6 , df7 , df8 , df9 ], axis=1)
-
-
-
-
-# metrics =metrics.append( metrics.groupby(by = ['Feat']).mean())
-
-
-
-
-#Save Results
-metrics.to_csv("ResultsAverage_/Valdation_Results.csv", float_format="%.5f",index=True, header=True)
-metrics.to_csv("Results/Valdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
-
-
-
+# #Save Results
+metrics.to_csv("Valdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
+metrics1.to_csv("AverageValdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
 
 
 
@@ -609,12 +595,5 @@ metrics.to_csv("Results/Valdation_Results_for_"+ str(len(feature_list)) +".csv",
 # finalresults=finalresults.set_index(['NAMES'])
 
 # finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
-
-
-
-
-test=scaler.scale_
-alpha=test[0]/test[1]
-testeser=0.000418296/0.00041831
 
 
