@@ -152,7 +152,7 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 def model_create(nodes, seq_size , features,lrate):
     # opt = keras.optimizers.Adam(learning_rate=lrate)
     model = Sequential()
-    model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -176,7 +176,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
     
     
-    A=[	30, 23, 40, 35, 32, 41]
+    A=[	1492, 1482, 1323, 1372, 1222, 662]
     newcasesprediction = pd.DataFrame(A)
     
     current_batch = trainset[-seq_size:]
@@ -194,7 +194,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         
         current_pred = model.predict(current_batch) # Make a prediction 
         total_cases = float(current_pred[0]) #Convert Prediction to integer 
-        total_cases= total_cases /0.000149254 #De-scale
+        total_cases= total_cases /5.80966e-06 #De-scale
         
         
         
@@ -206,7 +206,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         
         #### New Cases ####
         
-        new_cases= total_cases-(predictiondata.iloc[len(predictiondata.index)-1,0])/0.000149254 # Calculate  new casesDe-scaled
+        new_cases= total_cases-(predictiondata.iloc[len(predictiondata.index)-1,0])/5.80966e-06 # Calculate  new casesDe-scaled
         
         new_cases_per_million = new_cases*0.096  #Calculate New per million 
         
@@ -220,21 +220,24 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         
         #Scale Back 
         
-        total_cases = total_cases * 0.000149254
-        new_cases = new_cases * 0.00826446
-        new_cases_smoothed = new_cases_smoothed * 0.00992908
-        total_cases_per_million = total_cases_per_million * 0.00155568
-        new_cases_per_million = new_cases_per_million *0.0861401
-        new_cases_smoothed_pre_million = new_cases_smoothed_pre_million * 0.103428
+        total_cases = total_cases * 5.80966e-06
+        new_cases = new_cases * 0.000301568
+        new_cases_smoothed = new_cases_smoothed * 0.000374211
+        total_cases_per_million = total_cases_per_million * 5.82583e-05
+        new_cases_per_million = new_cases_per_million * 0.00314326
+        new_cases_smoothed_pre_million = new_cases_smoothed_pre_million * 0.00389804
         
 
         
         
         #Add New Day Values 
-        Featnames = ['total_deaths','new_deaths','new_deaths_smoothed','total_deaths_per_million','new_deaths_per_million','new_deaths_smoothed_per_million']
+        Featnames = ['total_cases','new_cases','new_cases_smoothed','total_cases_per_million','new_cases_per_million','new_cases_smoothed_per_million']
         featval = [total_cases,new_cases,new_cases_smoothed,total_cases_per_million,new_cases_per_million,new_cases_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
-        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ,dictionary[feature_list[2]], dictionary[feature_list[3]] ] # , dictionary[feature_list[4]] ,  dictionary[feature_list[5]] ]
+
+        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] , dictionary[feature_list[2]]  ] # , dictionary[feature_list[4]] ,  dictionary[feature_list[5]] ]
+
+
         
         predictiondata.loc[len(predictiondata.index)] = usedval
     
@@ -244,7 +247,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
     
@@ -345,10 +348,10 @@ def find_best_model(mape):
 
 seq_size =3
 times =10
-combos=4
+combos=3
 nodes=2
 lr = 0.0001
-epochs=60
+epochs=75
 
 
 
@@ -369,15 +372,14 @@ MAPE_4_Next_day = []
 Features = []
 loc="owid-covid-data.csv"
 Greece_total , titles =readdata(loc)
-flist = featcombos('deaths', titles, combos)
+flist = featcombos('cases', titles, combos)
 
 
 flist=flist*times
-flist=[ x for x in flist if "total_deaths"  in x ]
-flist=[ x for x in flist if "new_deaths"  in x ]
-flist=[ x for x in flist if "new_deaths_smoothed"  in x ]
-flist=[ x for x in flist if "new_deaths_smoothed_per_million"  in x ]
 
+flist=[ x for x in flist if "total_cases"  in x ]
+flist=[ x for x in flist if "new_cases_smoothed"   in x ]
+flist=[ x for x in flist if "new_cases_smoothed_per_million"  in x ]
 
 
 # flist=flist[:1]
@@ -395,7 +397,9 @@ for i in range(len(flist)):
     Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
 
 
+
     dates,greece = createdata(Greece_total ,feature_list )
+    
     
     
     
@@ -414,12 +418,26 @@ for i in range(len(flist)):
     test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
     
     
-    train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set, test_set)
+    train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
+                                                                    test_set)
+    # a =train_generator[3]
     
-    inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,dates)
+    inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,
+                                                            dates)
 
+
+
+# Hyperparameters= Hyper(learning_rate, epochs, nodes ,times )
+
+
+    # nodes , lr , epochs = Hyperparameters[i]
     experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
                       validation_set, train_set, inv_val, inv_test, dates , lr )
+
+
+
+
+
 
 
 
@@ -430,8 +448,10 @@ metrics = pd.DataFrame(
 
 metrics=metrics.sort_values(by=['Feat']).reset_index(drop=True)
 
-metrics[['Feature 1','Feature 2' , 'Feature 3' , 'Feature 4']] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
-metrics1 = metrics.groupby(['Feature 1', 'Feature 2', 'Feature 3' , 'Feature 4' ]).mean()
+
+metrics[['Feature 1','Feature 2' , 'Feature 3']] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
+metrics1 = metrics.groupby(['Feature 1', 'Feature 2' , 'Feature 3' ]).mean()
+
  
 
 # #Save Results
@@ -586,6 +606,4 @@ finalresults=pd.DataFrame({" 7 Days" :Days_7, " 14 Days" :Days_14, " 30 Days" :D
 finalresults=finalresults.set_index(['NAMES'])
 
 finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
-
-
 
