@@ -112,7 +112,7 @@ def plotloss(mod, name=""):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    # plt.savefig("Plots/loss_model" + name +".jpeg"  )
+    plt.savefig("Plots/loss_model" + name +".jpeg"  )
     plt.show()
 
 
@@ -124,7 +124,7 @@ def plotprediction(ypredict , name=""):
     plt.xlabel('Date')
     plt.ylabel('Cases')
     plt.legend()
-    # plt.savefig("Plots/pred" + name +".jpeg"  )
+    plt.savefig("Plots/pred" + name +".jpeg"  )
     plt.show()
    
 
@@ -161,7 +161,7 @@ def model_create(nodes, seq_size , features,lrate):
 
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
-    # model.save('Models/model_' + str(i) + '.h5', overwrite=True)
+    model.save('Models/model_' + str(i) + '.h5', overwrite=True)
     plotloss(history,str(i))
     return model
 
@@ -234,7 +234,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         Featnames = ['total_deaths','new_deaths','new_deaths_smoothed','total_deaths_per_million','new_deaths_per_million','new_deaths_smoothed_per_million']
         featval = [total_cases,new_cases,new_cases_smoothed,total_cases_per_million,new_cases_per_million,new_cases_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
-        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ]# ,dictionary[feature_list[2]], dictionary[feature_list[3]] , dictionary[feature_list[4]] ,  dictionary[feature_list[5]] ]
+        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ,dictionary[feature_list[2]], dictionary[feature_list[3]] ] # , dictionary[feature_list[4]] ,  dictionary[feature_list[5]] ]
         
         predictiondata.loc[len(predictiondata.index)] = usedval
     
@@ -345,7 +345,7 @@ def find_best_model(mape):
 
 seq_size =3
 times =10
-combos=2
+combos=4
 nodes=2
 lr = 0.0001
 epochs=60
@@ -374,7 +374,10 @@ flist = featcombos('deaths', titles, combos)
 
 flist=flist*times
 flist=[ x for x in flist if "total_deaths"  in x ]
-flist=[ x for x in flist if "total_deaths_per_million"  in x ]
+flist=[ x for x in flist if "new_deaths"  in x ]
+flist=[ x for x in flist if "new_deaths_smoothed"  in x ]
+flist=[ x for x in flist if "new_deaths_smoothed_per_million"  in x ]
+
 
 
 # flist=flist[:1]
@@ -427,8 +430,8 @@ metrics = pd.DataFrame(
 
 metrics=metrics.sort_values(by=['Feat']).reset_index(drop=True)
 
-metrics[['Feature 1','Feature 2']] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
-metrics1 = metrics.groupby(['Feature 1', 'Feature 2' ]).mean()
+metrics[['Feature 1','Feature 2' , 'Feature 3' , 'Feature 4']] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
+metrics1 = metrics.groupby(['Feature 1', 'Feature 2', 'Feature 3' , 'Feature 4' ]).mean()
  
 
 # #Save Results
