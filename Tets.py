@@ -141,8 +141,8 @@ def model_create(nodes, seq_size , features,lrate):
 
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
-    model.save('Models\model_' + str(i) + '.h5', overwrite=True)
-    plotloss(history,str(i))
+    # model.save('Models\model_' + str(i) + '.h5', overwrite=True)
+    # plotloss(history,str(i))
     return model
 
 
@@ -220,7 +220,7 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
     experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-    plotprediction(forecast ,str(i))
+    # plotprediction(forecast ,str(i))
     
     
     ##################### Metrics ######################
@@ -275,28 +275,13 @@ n_features = len(feature_list)
 
 seq_size = 3
 
-times =10
-learning_rate = (0.0001 , 0.001)        #,0.0005 , 0.001)
-epochs = (150  ,60, 75)
-# dropout = (0. ,0.1)               #Nodes pane sto Dropout
-nodes = (44,88)   # (18,20,22,25,30,35,44,59,88)
-
-
-
-# learning_rate = (0.1,0.5 , 0.15)
-# epochs = (1 , 2 , 3)
-# dropout = (0. ,0.1 , 0.2)
-
-
-
-
+times =5
+learning_rate = (0.0001 , 0.0001)        #,0.0005 , 0.001)
+epochs = (160  ,175, 200)
+nodes = (22,44)   # (18,20,22,25,30,35,44,59,88)
 
 
 Hyperparameters= Hyper(learning_rate, epochs, nodes ,times )
-
-
-
-
 
 
 dates,greece , Greece_total =createdata(Windeos_loc,feature_list)
