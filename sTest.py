@@ -91,7 +91,7 @@ def plotloss(mod, name=""):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig("Plots\loss_model" + name +".jpeg"  )
+    # plt.savefig("Plots\loss_model" + name +".jpeg"  )
     plt.show()
 
 
@@ -103,7 +103,7 @@ def plotprediction(ypredict , name=""):
     plt.xlabel('Date')
     plt.ylabel('Cases')
     plt.legend()
-    plt.savefig("Plots\pred" + name +".jpeg"  )
+    # plt.savefig("Plots\pred" + name +".jpeg"  )
     plt.show()
    
 
@@ -128,21 +128,19 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
     return set1, set2, set3
 
 
-def model_create(nodes, seq_size , features,lrate):
-    opt = keras.optimizers.Adam(learning_rate=0.0001)
+def model_create(nodes, seq_size , features):
     model = Sequential()
     model.add(LSTM(nodes, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    # model.add(Dropout(nodes))
     model.add(LSTM(nodes , return_sequences=False))
     model.add(Dense(1))
-    model.compile(optimizer=opt, loss='mean_squared_error')
+    model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
     return model
 
 
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
-    model.save('Models\model_' + str(i) + '.h5', overwrite=True)
+    # model.save('Models\model_' + str(i) + '.h5', overwrite=True)
     plotloss(history,str(i))
     return model
 
@@ -187,15 +185,15 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
 
 
-def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
+def Hyper(parameter1 , parameter2 , repetitions):
     hp1 = list(product(parameter1 , parameter2 ))
-    Hyperparameters = list (product(hp1 , parameter3))
-    Hyperparameters= pd.DataFrame(Hyperparameters).rename(columns={0: "A", 1: "Nodes"})
+    print(hp1)
+    # Hyperparameters = list (product(hp1 , parameter3))
+    Hyperparameters= pd.DataFrame(hp1).rename(columns={0: "Nodes", 1: "Epochs"})
     
-    Hyperparameters[['Learning Rate' , 'Epochs']]= pd.DataFrame(Hyperparameters['A'].tolist(), index=Hyperparameters.index)
+    # Hyperparameters[['Learning Rate' , 'Epochs']]= pd.DataFrame(Hyperparameters['A'].tolist(), index=Hyperparameters.index)
     
-    Hyperparameters =Hyperparameters.drop(['A'], axis=1)
-    Hyperparameters=Hyperparameters.sort_values(by=['Nodes', 'Learning Rate' ,'Epochs' ])
+    Hyperparameters=Hyperparameters.sort_values(by=['Nodes' ,'Epochs' ])
     Hyperparameters=pd.concat([Hyperparameters]*times)
     
     
@@ -214,9 +212,9 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 
 
 def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
-                train_set, inv_val, inv_test, dates ,lrate):
+                train_set, inv_val, inv_test, dates ):
     
-    experimentmodel = model_create(nodes, seq_size ,n_features , lrate)
+    experimentmodel = model_create(nodes, seq_size ,n_features )
 
     experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
@@ -251,7 +249,6 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
     MAPE_4_7days.append(mape_7days)
     
     Epochs.append(epochs)
-    LR.append(lrate)
         
 
     return 
@@ -271,12 +268,13 @@ feature_list=["total_cases"]
 n_features = len(feature_list)
 seq_size = 3
 
-times =5 #For each experiment
-lr = 0.1
-epochs = 2
-nodes = 88
+times = 1#For each experiment
 
-# Hyperparameters= Hyper(nodes, epochs ,times )
+epochs = [1,2,3]
+nodes = [1 , 2 ]
+
+Hyperparameters= Hyper(nodes, epochs ,times )
+
 
 
 
@@ -307,17 +305,18 @@ MAPE_4_7days = []
 MAPE_4_Next_day = []
 
 
-for i in  range(times):
-    experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , lr )
+for i in  range(len(Hyperparameters)):
+    nodes  ,  epochs = Hyperparameters[i] 
+    experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates )
 
 
 
 
 
 metrics = pd.DataFrame({'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
-     'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node , 'Learning Rate' : LR , 'Epochs' : Epochs})
+     'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node , 'Epochs' : Epochs})
 
 # metrics =metrics.append( metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']).mean())
-metrics = metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']).mean()
-metrics.to_csv("Results.csv", float_format="%.5f",index=True, header=True)
+metrics = metrics.groupby(['Nodes' , 'Epochs']).mean()
+# metrics.to_csv("Results.csv", float_format="%.5f",index=True, header=True)
 
