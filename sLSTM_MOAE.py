@@ -130,11 +130,11 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
     return set1, set2, set3
 
 
-def model_create(nodes, seq_size , features):
+def model_create(nodes1 ,nodes2 , seq_size , features):
     model = Sequential()
-    model.add(LSTM(44, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(LSTM(nodes1, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
     # model.add(Dropout(0.2))
-    model.add(LSTM(nodes, return_sequences=False))
+    model.add(LSTM(nodes2, return_sequences=False))
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -142,13 +142,16 @@ def model_create(nodes, seq_size , features):
 
 
 def model_train(i, model, traingenerator, valgenerator, ep):
-    earlystopping = callbacks.EarlyStopping(monitor ="val_loss", mode ="min", patience = 5, restore_best_weights = True)
+    # earlystopping = callbacks.EarlyStopping(monitor ="val_loss", mode ="min", patience = 5, restore_best_weights = True)
 
 
-    history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep,batch_size= 1 ,verbose=1,callbacks =[earlystopping])
-    model.save('Models\model_' + str(i) + '.h5', overwrite=True)
+    history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep,batch_size= 1 ,verbose=1)
+    # history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep,batch_size= 1 ,verbose=1,callbacks =[earlystopping])
+
+    
+    # model.save('Models\model_' + str(i) + '.h5', overwrite=True)
     plotloss(history,str(i))
-    avep.append( len(history.history['loss']))
+    # avep.append( len(history.history['loss']))
     
     
     return model
@@ -193,15 +196,15 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     return forecast
 
 
-
-def Hyper(parameter1 , parameter2 , repetitions):
+def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
     hp1 = list(product(parameter1 , parameter2 ))
-    # Hyperparameters = list (product(hp1 , parameter3))
-    Hyperparameters= pd.DataFrame(hp1).rename(columns={0: "Nodes", 1: "Epochs"})
+    Hyperparameters = list (product(hp1 , parameter3))
+    Hyperparameters= pd.DataFrame(Hyperparameters).rename(columns={0: "A", 1: "Nodes"})
     
-    # Hyperparameters[['Learning Rate' , 'Epochs']]= pd.DataFrame(Hyperparameters['A'].tolist(), index=Hyperparameters.index)
+    Hyperparameters[['Learning Rate' , 'Epochs']]= pd.DataFrame(Hyperparameters['A'].tolist(), index=Hyperparameters.index)
     
-    Hyperparameters=Hyperparameters.sort_values(by=['Nodes' ,'Epochs' ])
+    Hyperparameters =Hyperparameters.drop(['A'], axis=1)
+    Hyperparameters=Hyperparameters.sort_values(by=['Nodes', 'Learning Rate' ,'Epochs' ])
     Hyperparameters=pd.concat([Hyperparameters]*times)
     
     
@@ -214,15 +217,13 @@ def Hyper(parameter1 , parameter2 , repetitions):
 
 
 
-
-
 ########################## Cluster Fuck  LSTM ##############################################
 
 
-def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
+def experiments(times, nodes1,nodes2, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ):
     
-    experimentmodel = model_create(nodes, seq_size ,n_features )
+    experimentmodel = model_create(nodes1,nodes2, seq_size ,n_features )
 
     experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
@@ -257,17 +258,13 @@ def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_genera
     MAPE_4_7days.append(mape_7days)
     
     Epochs.append(epochs)
+    Nodes1.append(nodes1)
+    Nodes2.append(nodes2)
+
         
 
     return 
 
-def find_best_model(mape):
-    mape = pd.DataFrame(mape)
-    min = mape.idxmin()
-    j = min[0]
-    best_model = keras.models.load_model(r"Models\model_" + str(j) + ".h5")
-    print("Best Model is :model_" + str(j) + ".h5")
-    return best_model
 
 
 
@@ -276,12 +273,35 @@ feature_list=["total_cases"]
 n_features = len(feature_list)
 seq_size = 3
 
-times = 5 #For each experiment
+times = 10 #For each experiment
 
-epochs = [50,50]
+
+
+nodes_0 = [18,20,22,25]
+
+nodes_1 =[30,35,44,59,88] 
+
 nodes = [18,20,22,25,30,35,44,59,88]
 
-Hyperparameters= Hyper(nodes, epochs ,times )
+epochs = [5, 10, 15]
+
+
+
+
+
+
+# times = 1 #For each experiment
+
+
+# nodes_0 = [1,2,3]
+
+# nodes_1 =[4,5] 
+
+# nodes_1 =[4,5] 
+
+# epochs = [1, 2, 3]
+
+Hyperparameters= Hyper(nodes_0, nodes , epochs,times )
 
 
 
@@ -311,167 +331,24 @@ RMSE_4 = []
 MAPE_4_3days = []
 MAPE_4_7days = []
 MAPE_4_Next_day = []
+Nodes1 = []
+Nodes2 = []
 
 
 for i in  range(len(Hyperparameters)):
-    nodes  ,  epochs = Hyperparameters[i]
-    experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates )
+    epochs , firstnodes , secondnodes = Hyperparameters[i]
+    experiments(i, firstnodes , secondnodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates )
 
 
 
 
 
 metrics = pd.DataFrame({'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
-     'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node , 'Epochs' : Epochs})
+     'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Epochs' : Epochs , 'Layer 1' : Nodes1 , 'Layer 2': Nodes2})
 
 # metrics =metrics.append( metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']).mean())
-metrics = metrics.groupby(['Nodes' , 'Epochs']).mean()
+metrics = metrics.groupby(['Layer 1' ,'Layer 2' , 'Epochs']).mean()
 metrics.to_csv("Results/Valdation_Results_for_stacked.csv", float_format="%.5f",index=True, header=True)
-
-# bestmodel = find_best_model(MAPE_4)
-
-
-# average_epochs = round(sum(avep)/len(avep))
-
-# bestmodel.fit_generator(val_generator, epochs=average_epochs, verbose=1) 
-# bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
-
-# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
-
-# plotprediction(forecastf[:7] , "iction_7_day_prediction")
-# plotprediction(forecastf[:14] , "iction_14_day_prediction")
-# plotprediction(forecastf[:30] , "iction_30_day_prediction")
-# plotprediction(forecastf[:60] , "iction_60_day_prediction")
-# plotprediction(forecastf[:90] , "iction_90_day_prediction")
-
-# Days_7= []
-# Days_14= []
-# Days_30= []
-# Days_60= []
-# Days_90= []
-
-
-# ###############################################################################
-
-# mae = mean_absolute_error(forecastf['Actual'], forecastf['Prediction'])
-# mae= float("{:.3f}".format(mae))
-# Days_90.append(mae)
-
-# mae_7days = mean_absolute_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
-# mae_7days= float("{:.3f}".format(mae_7days))
-# Days_7.append(mae_7days)
-
-
-# mae_14days = mean_absolute_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
-# mae_14days= float("{:.3f}".format(mae_14days))
-# Days_14.append(mae_14days)
-
-# mae_30days = mean_absolute_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
-# mae_30days= float("{:.3f}".format(mae_30days))
-# Days_30.append(mae_30days)
-
-# mae_60days = mean_absolute_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
-# mae_60days= float("{:.3f}".format(mae_60days))
-# Days_60.append(mae_60days)
-
-# ###############################################################################
-
-
-
-# ###############################################################################
-
-# mape = mean_absolute_percentage_error(forecastf['Actual'], forecastf['Prediction'])
-# mape= float("{:.3f}".format(mape))
-# Days_90.append(mape)
-
-
-# mape_7days = mean_absolute_percentage_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
-# mape_7days= float("{:.3f}".format(mape_7days))
-# Days_7.append(mape_7days)
-
-                  
-# mape_14days = mean_absolute_percentage_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
-# mape_14days= float("{:.3f}".format(mape_14days))
-# Days_14.append(mape_14days)
-
-
-# mape_30days = mean_absolute_percentage_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
-# mape_30days= float("{:.3f}".format(mape_30days))
-# Days_30.append(mape_30days)
-
-
-# mape_60days = mean_absolute_percentage_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
-# mape_60days= float("{:.3f}".format(mape_60days))
-# Days_60.append(mape_60days)
-
-
-# ###############################################################################
-
-
-# ###############################################################################
-
-# mse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'])
-# mse= float("{:.3f}".format(mse))
-# Days_90.append(mse)
-
-
-# mse_7days = mean_squared_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
-# mse_7days= float("{:.3f}".format(mse_7days))
-# Days_7.append(mse_7days)
-
-# mse_14days = mean_squared_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
-# mse_14days= float("{:.3f}".format(mse_14days))
-# Days_14.append(mse_14days)
-
-
-# mse_30days = mean_squared_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
-# mse_30days= float("{:.3f}".format(mse_30days))
-# Days_30.append(mse_30days)
-
-
-# mse_60days = mean_squared_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
-# mse_60days= float("{:.3f}".format(mse_60days))
-# Days_60.append(mse_60days)
-
-# ###############################################################################
-
-
-# ###############################################################################
-
-# rmse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'], squared=False)
-# rmse= float("{:.3f}".format(rmse))
-# Days_90.append(rmse)
-
-
-# rmse_7days = mean_squared_error(forecastf['Actual'][:7], forecastf['Prediction'][:7] , squared=False)
-# rmse_7days= float("{:.3f}".format(rmse_7days))
-# Days_7.append(rmse_7days)
-
-
-# rmse_14days = mean_squared_error(forecastf['Actual'][:14], forecastf['Prediction'][:14] , squared=False)
-# rmse_14days= float("{:.3f}".format(rmse_14days))
-# Days_14.append(rmse_14days)
-
-
-# rmse_30days = mean_squared_error(forecastf['Actual'][:30], forecastf['Prediction'][:30] , squared=False)
-# rmse_30days= float("{:.3f}".format(rmse_30days))
-# Days_30.append(rmse_30days)
-
-
-# rmse_60days = mean_squared_error(forecastf['Actual'][:60], forecastf['Prediction'][:60] , squared=False)
-# rmse_60days= float("{:.3f}".format(rmse_60days))
-# Days_60.append(rmse_60days)
-
-
-# ###############################################################################
-
-
-
-# Names = ['MAE' , 'MAPE' , 'MSE'  , 'RMSE']
-# finalresults=pd.DataFrame({" 7 Days" :Days_7, " 14 Days" :Days_14, " 30 Days" :Days_30," 60 Days" :Days_60," 90 Days":Days_90  , 'NAMES':Names })
-# finalresults=finalresults.set_index(['NAMES'])
-
-# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
 
 
