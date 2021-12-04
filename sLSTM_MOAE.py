@@ -130,28 +130,29 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
     return set1, set2, set3
 
 
-def model_create(nodes1 ,nodes2 , seq_size , features):
+def model_create(nodes1 ,nodes2 ,nodes3, seq_size , features):
     model = Sequential()
     model.add(LSTM(nodes1, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
     # model.add(Dropout(0.2))
-    model.add(LSTM(nodes2, return_sequences=False))
+    model.add(LSTM(nodes2, return_sequences=True))
+    model.add(LSTM(nodes3, return_sequences=False))
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
     return model
 
 
-def model_train(i, model, traingenerator, valgenerator, ep):
-    # earlystopping = callbacks.EarlyStopping(monitor ="val_loss", mode ="min", patience = 5, restore_best_weights = True)
+def model_train(i, model, traingenerator, valgenerator, ep , bsize):
+    earlystopping = callbacks.EarlyStopping(monitor ="val_loss", mode ="min", patience = 5, restore_best_weights = True)
 
 
-    history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep,batch_size= 1 ,verbose=1)
-    # history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep,batch_size= 1 ,verbose=1,callbacks =[earlystopping])
+    # history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep,batch_size= bsize ,verbose=1)
+    history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep,batch_size= 1 ,verbose=1,callbacks =[earlystopping])
 
     
     # model.save('Models\model_' + str(i) + '.h5', overwrite=True)
     plotloss(history,str(i))
-    # avep.append( len(history.history['loss']))
+    avep.append( len(history.history['loss']))
     
     
     return model
@@ -220,12 +221,12 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 ########################## Cluster Fuck  LSTM ##############################################
 
 
-def experiments(times, nodes1,nodes2, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
-                train_set, inv_val, inv_test, dates ):
+def experiments(times, nodes1,nodes2,nodes3, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
+                train_set, inv_val, inv_test, dates ,bsize):
     
-    experimentmodel = model_create(nodes1,nodes2, seq_size ,n_features )
+    experimentmodel = model_create(nodes1,nodes2,nodes3, seq_size ,n_features )
 
-    experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs , bsize)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
     plotprediction(forecast ,str(i))
@@ -245,7 +246,7 @@ def experiments(times, nodes1,nodes2, scaler, seq_size, epochs, n_features, trai
     rmse_4 = mean_squared_error(forecast['Actual'], forecast['Prediction'], squared=False)
     RMSE_4.append(rmse_4)
 
-    node.append(nodes)
+    # node.append(nodes)
 
 
     mape_4_next_day = mean_absolute_percentage_error(forecast['Actual'][:1], forecast['Prediction'][:1])
@@ -260,6 +261,8 @@ def experiments(times, nodes1,nodes2, scaler, seq_size, epochs, n_features, trai
     Epochs.append(epochs)
     Nodes1.append(nodes1)
     Nodes2.append(nodes2)
+    Nodes3.append(nodes3)
+    Batch.append(bsize)
 
         
 
@@ -277,31 +280,31 @@ times = 10 #For each experiment
 
 
 
-nodes_0 = [18,20,22,25]
-
-nodes_1 =[30,35,44,59,88] 
-
-nodes = [18,20,22,25,30,35,44,59,88]
-
-epochs = [5, 10, 15]
+nodes_0 = [18,20,22]
+nodes_1 = [25,30,35] 
+nodes_2 = [44,59,88]
 
 
 
+# batch_size = [4,8] 
+# epochs = [1, 2]
+# times=1
 
 
 
-# times = 1 #For each experiment
+times = 10 #For each experiment
 
 
 # nodes_0 = [1,2,3]
 
-# nodes_1 =[4,5] 
+# nodes_1 =[1,2] 
 
-# nodes_1 =[4,5] 
+# nodes_2 =[3,4] 
 
-# epochs = [1, 2, 3]
+# nodes_3 =[5,6]
 
-Hyperparameters= Hyper(nodes_0, nodes , epochs,times )
+
+Hyperparameters= Hyper(nodes_0, nodes_0 , nodes_0,times )
 
 
 
@@ -333,22 +336,38 @@ MAPE_4_7days = []
 MAPE_4_Next_day = []
 Nodes1 = []
 Nodes2 = []
+Nodes3 = []
+Batch=[]
+
+
 
 
 for i in  range(len(Hyperparameters)):
-    epochs , firstnodes , secondnodes = Hyperparameters[i]
-    experiments(i, firstnodes , secondnodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates )
+    thirdnodes, secondnodes , firstnodes = Hyperparameters[i]
+    epochs=60
+    bacthsize = 1
+    experiments(i, firstnodes , secondnodes,thirdnodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , bacthsize )
+
+
+
+
+# for i in  range(len(Hyperparameters)):
+# for i in  range(10):
+
+    
+    # batchsize ,epochs= 1 , 5
+    # firstnodes , secondnodes = 30 , 18
+    # experiments(i, firstnodes , secondnodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , batchsize )
 
 
 
 
 
 metrics = pd.DataFrame({'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
-     'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Epochs' : Epochs , 'Layer 1' : Nodes1 , 'Layer 2': Nodes2})
+     'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Epochs' : Epochs , 'Layer 1' : Nodes1 , 'Layer 2': Nodes2, 'Layer 3' : Nodes3,'Average Epochs' : avep})
 
 # metrics =metrics.append( metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']).mean())
-metrics = metrics.groupby(['Layer 1' ,'Layer 2' , 'Epochs']).mean()
-metrics.to_csv("Results/Valdation_Results_for_stacked.csv", float_format="%.5f",index=True, header=True)
-
+metrics = metrics.groupby(['Layer 1' ,'Layer 2' , 'Layer 3']).mean()
+metrics.to_csv("Results_for_stacked.csv", float_format="%.5f",index=True, header=True)
 
 
