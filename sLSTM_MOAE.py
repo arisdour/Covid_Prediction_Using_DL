@@ -3,7 +3,6 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-from tensorflow import keras
 from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM
@@ -340,7 +339,7 @@ Nodes3 = []
 Batch=[]
 
 
-
+start = time.time()
 
 for i in  range(len(Hyperparameters)):
     thirdnodes, secondnodes , firstnodes = Hyperparameters[i]
@@ -349,6 +348,10 @@ for i in  range(len(Hyperparameters)):
     experiments(i, firstnodes , secondnodes,thirdnodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , bacthsize )
 
 
+end = time.time()
+hours, rem = divmod(end - start, 3600)
+minutes, seconds = divmod(rem, 60)
+print("{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
 
 
 # for i in  range(len(Hyperparameters)):
@@ -368,6 +371,6 @@ metrics = pd.DataFrame({'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
 
 # metrics =metrics.append( metrics.groupby(['Nodes' , 'Learning Rate'  , 'Epochs']).mean())
 metrics = metrics.groupby(['Layer 1' ,'Layer 2' , 'Layer 3']).mean()
-metrics.to_csv("Results_for_stacked.csv", float_format="%.5f",index=True, header=True)
+metrics.to_csv("Results\Results_for_stacked.csv", float_format="%.5f",index=True, header=True)
 
 
