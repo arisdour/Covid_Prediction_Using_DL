@@ -132,8 +132,9 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 def model_create(nodes1 ,nodes2 ,nodes3, seq_size , features):
     model = Sequential()
     model.add(LSTM(nodes1, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    # model.add(Dropout(0.2))
+    # model.add(Dropout(0.1))
     model.add(LSTM(nodes2, return_sequences=True))
+    # model.add(Dropout(0.1))
     model.add(LSTM(nodes3, return_sequences=False))
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -150,7 +151,7 @@ def model_train(i, model, traingenerator, valgenerator, ep , bsize):
 
     
     # model.save('Models\model_' + str(i) + '.h5', overwrite=True)
-    plotloss(history,str(i))
+    # plotloss(history,str(i))
     avep.append( len(history.history['loss']))
     
     
@@ -228,7 +229,7 @@ def experiments(times, nodes1,nodes2,nodes3, scaler, seq_size, epochs, n_feature
     experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs , bsize)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-    plotprediction(forecast ,str(i))
+    # plotprediction(forecast ,str(i))
     
     
     ##################### Metrics ######################
@@ -275,35 +276,20 @@ feature_list=["total_cases"]
 n_features = len(feature_list)
 seq_size = 3
 
-times = 10 #For each experiment
 
 
 
-nodes_0 = [18,20,22]
-nodes_1 = [25,30,35] 
-nodes_2 = [44,59,88]
+
+nodes_0 = [30,30]
+# nodes_1 = [18,20,22,25,30,35,44,59,88]
+nodes_2 = [18,20,22,25,30,35,44,59,88]
+
+
+times = 5 #For each experiment
 
 
 
-# batch_size = [4,8] 
-# epochs = [1, 2]
-# times=1
-
-
-
-times = 10 #For each experiment
-
-
-# nodes_0 = [1,2,3]
-
-# nodes_1 =[1,2] 
-
-# nodes_2 =[3,4] 
-
-# nodes_3 =[5,6]
-
-
-Hyperparameters= Hyper(nodes_0, nodes_0 , nodes_0,times )
+Hyperparameters= Hyper(nodes_1, nodes_2, nodes_0 ,times )
 
 
 
