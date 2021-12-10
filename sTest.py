@@ -507,7 +507,6 @@ Days_60.append(rmse_60days)
 ###############################################################################
 
 
-
 Names = ['MAE' , 'MAPE' , 'MSE'  , 'RMSE']
 finalresults=pd.DataFrame({" 7 Days" :Days_7, " 14 Days" :Days_14, " 30 Days" :Days_30," 60 Days" :Days_60," 90 Days":Days_90  , 'NAMES':Names })
 finalresults=finalresults.set_index(['NAMES'])
