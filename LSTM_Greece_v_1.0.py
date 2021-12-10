@@ -183,7 +183,72 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     
     return forecast
 
+def predict_training(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
+
+    # Forecast   Predict using a for loop
+    index = inverseval.index
+    predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
+    predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
+    current_batch = trainset[-seq_size:]
+    forecast = pd.DataFrame()
+
+    # Predict future, beyond test dates
+    future = len(validation_set) - seq_size  # Days
+    for i in range(future):
+                
+        current_batch = predictiondata[i:seq_size + i] #Create input for LSTM (Based on sequence size )
+
+        current_batch = current_batch.to_numpy()  #Input to array 
+
+        current_batch = current_batch.reshape(1, seq_size, n_features)  # Reshape
+
+        ### Prediction ##
+       
+        
+        # model.fit(current_batch, epochs=1, verbose=1) 
+        current_pred = model.predict(current_batch) # Make a prediction 
+        # print("Current Batch ")
+        # print(current_batch)
+        # print("Prediction")
+        # print(current_pred)
+        # print("Prediction Data")
+        # print(predictiondata)
+        
+        current_pred = float(current_pred[0]) #Convert Prediction to integer 
+        predictiondata.loc[len(predictiondata.index)] = [current_pred]   
+        # print(predictiondata[-(seq_size):])
+        
+        trainpred = predictiondata[-(seq_size)-1:].reset_index(drop='true')
+        # print(trainpred)
+
+        # trainpred=trainpred.to_numpy()
+        # trainpred = TimeseriesGenerator(trainpred, trainpred.iloc[:, 0], length=3, batch_size=1)
+        # trainpred = trainpred.reshape(1, seq_size, n_features)  # Reshape
+        # print(trainpred)
+        
+        trainpred_generator = TimeseriesGenerator(trainpred, trainpred.iloc[:, 0], length=seq_size, batch_size=1)
+
+        
+        
+        model.fit(trainpred_generator, epochs=3, verbose=0) 
+        
+        
+        
+        
+        
+
+    forecast = predictiondata[-(future):] #Save results in a dataframe 
+    forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual cases 
+    forecast = pd.DataFrame(forecast.round()) #Round results 
+    forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
+
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+
+    forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
+    
+    
+    return forecast
 
 
 
@@ -354,48 +419,141 @@ bestmodel.save(r"Models\Final_model_for_"+ a + ".h5")
 
 forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
+
 plotprediction(forecastf[:7] , "iction_7_day_prediction")
 plotprediction(forecastf[:14] , "iction_14_day_prediction")
 plotprediction(forecastf[:30] , "iction_30_day_prediction")
 plotprediction(forecastf[:60] , "iction_60_day_prediction")
 plotprediction(forecastf[:90] , "iction_90_day_prediction")
 
+Days_7= []
+Days_14= []
+Days_30= []
+Days_60= []
+Days_90= []
+
+
+###############################################################################
 
 mae = mean_absolute_error(forecastf['Actual'], forecastf['Prediction'])
 mae= float("{:.3f}".format(mae))
+Days_90.append(mae)
+
+mae_7days = mean_absolute_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
+mae_7days= float("{:.3f}".format(mae_7days))
+Days_7.append(mae_7days)
+
+
+mae_14days = mean_absolute_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
+mae_14days= float("{:.3f}".format(mae_14days))
+Days_14.append(mae_14days)
+
+mae_30days = mean_absolute_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
+mae_30days= float("{:.3f}".format(mae_30days))
+Days_30.append(mae_30days)
+
+mae_60days = mean_absolute_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
+mae_60days= float("{:.3f}".format(mae_60days))
+Days_60.append(mae_60days)
+
+###############################################################################
+
+
+
+###############################################################################
 
 mape = mean_absolute_percentage_error(forecastf['Actual'], forecastf['Prediction'])
 mape= float("{:.3f}".format(mape))
+Days_90.append(mape)
 
-mape_1day = mean_absolute_percentage_error(forecastf['Actual'][:1], forecastf['Prediction'][:1])
-mape_1day= float("{:.3f}".format(mape_1day))
-
-
-mape_3days = mean_absolute_percentage_error(forecastf['Actual'][:3], forecastf['Prediction'][:3])
-mape_3days= float("{:.3f}".format(mape_3days))
 
 mape_7days = mean_absolute_percentage_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
 mape_7days= float("{:.3f}".format(mape_7days))
+Days_7.append(mape_7days)
+
                   
 mape_14days = mean_absolute_percentage_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
 mape_14days= float("{:.3f}".format(mape_14days))
+Days_14.append(mape_14days)
+
 
 mape_30days = mean_absolute_percentage_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
 mape_30days= float("{:.3f}".format(mape_30days))
+Days_30.append(mape_30days)
+
 
 mape_60days = mean_absolute_percentage_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
 mape_60days= float("{:.3f}".format(mape_60days))
+Days_60.append(mape_60days)
+
+
+###############################################################################
+
+
+###############################################################################
 
 mse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'])
 mse= float("{:.3f}".format(mse))
+Days_90.append(mse)
+
+
+mse_7days = mean_squared_error(forecastf['Actual'][:7], forecastf['Prediction'][:7])
+mse_7days= float("{:.3f}".format(mse_7days))
+Days_7.append(mse_7days)
+
+mse_14days = mean_squared_error(forecastf['Actual'][:14], forecastf['Prediction'][:14])
+mse_14days= float("{:.3f}".format(mse_14days))
+Days_14.append(mse_14days)
+
+
+mse_30days = mean_squared_error(forecastf['Actual'][:30], forecastf['Prediction'][:30])
+mse_30days= float("{:.3f}".format(mse_30days))
+Days_30.append(mse_30days)
+
+
+mse_60days = mean_squared_error(forecastf['Actual'][:60], forecastf['Prediction'][:60])
+mse_60days= float("{:.3f}".format(mse_60days))
+Days_60.append(mse_60days)
+
+###############################################################################
+
+
+##############################################################################
+
 rmse = mean_squared_error(forecastf['Actual'], forecastf['Prediction'], squared=False)
 rmse= float("{:.3f}".format(rmse))
+Days_90.append(rmse)
 
-finalresults=pd.DataFrame({"MAE": [mae],"MAPE 1 Day" : [mape_1day] , "MAPE 3 Days" :[mape_3days],"MAPE 7 Days " :[mape_7days] , "MAPE 14 Days" :[mape_14days], "MAPE 30 Days" :[mape_30days],"MAPE 60 Days" :[mape_60days],"MAPE":[mape], "RMSE": [rmse], "MSE":[mse]})
+
+rmse_7days = mean_squared_error(forecastf['Actual'][:7], forecastf['Prediction'][:7] , squared=False)
+rmse_7days= float("{:.3f}".format(rmse_7days))
+Days_7.append(rmse_7days)
 
 
-finalresults.to_csv("Results\Final_Results_for_" + a +".csv", float_format="%.5f",index=True, header=True)
+rmse_14days = mean_squared_error(forecastf['Actual'][:14], forecastf['Prediction'][:14] , squared=False)
+rmse_14days= float("{:.3f}".format(rmse_14days))
+Days_14.append(rmse_14days)
 
+
+rmse_30days = mean_squared_error(forecastf['Actual'][:30], forecastf['Prediction'][:30] , squared=False)
+rmse_30days= float("{:.3f}".format(rmse_30days))
+Days_30.append(rmse_30days)
+
+
+rmse_60days = mean_squared_error(forecastf['Actual'][:60], forecastf['Prediction'][:60] , squared=False)
+rmse_60days= float("{:.3f}".format(rmse_60days))
+Days_60.append(rmse_60days)
+
+
+###############################################################################
+
+
+
+Names = ['MAE' , 'MAPE' , 'MSE'  , 'RMSE']
+finalresults=pd.DataFrame({" 7 Days" :Days_7, " 14 Days" :Days_14, " 30 Days" :Days_30," 60 Days" :Days_60," 90 Days":Days_90  , 'NAMES':Names })
+finalresults=finalresults.set_index(['NAMES'])
+
+finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
 
 
