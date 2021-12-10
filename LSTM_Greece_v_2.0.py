@@ -611,8 +611,5 @@ metrics.to_csv("Results/Valdation_Results_for_"+ str(feature_list) +".csv", floa
 
 
 
-test=scaler.scale_
-alpha=test[0]/test[1]
-testeser=0.000418296/0.00041831
 
 
