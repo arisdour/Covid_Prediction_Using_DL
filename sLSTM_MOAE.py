@@ -289,7 +289,7 @@ times = 5 #For each experiment
 
 
 
-Hyperparameters= Hyper(nodes_1, nodes_2, nodes_0 ,times )
+Hyperparameters= Hyper(nodes_2, nodes_2, nodes_2 ,times )
 
 
 
