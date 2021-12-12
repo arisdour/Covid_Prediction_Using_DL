@@ -12,3 +12,5 @@ Models/model_9.h5
 *.csv
 *.png
 recurrent-neural-network.webarchive
+*.ipynb
+*.ipynb
