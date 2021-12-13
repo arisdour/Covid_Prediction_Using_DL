@@ -307,10 +307,10 @@ feature_list=["total_cases"]
 n_features = len(feature_list)
 seq_size = 3
 
-times = 5 #For each experiment
+times = 1 #For each experiment
 
-epochs = [50,50]
-nodes = [18,20,22,25,30,35,44,59,88]
+epochs = [1,2]
+nodes = [18,20]
 
 Hyperparameters= Hyper(nodes, epochs ,times )
 
@@ -367,7 +367,7 @@ average_epochs = round(sum(avep)/len(avep))
 
 
 
-#%%
+
 
 callback = keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=2)
 bestmodel.fit(val_generator, epochs=60,batch_size=1 ,  callbacks=[callback], verbose=1) 
