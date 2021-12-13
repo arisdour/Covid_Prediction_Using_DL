@@ -230,7 +230,6 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
                                                     # Fill the two first collumns of the Dataframe 
         # predictiondata.loc[len(predictiondata.index)] = [total_cases , new_cases,new_cases_smoothed]
 
-    
 
     forecast = predictiondata[-(future):] #Save results in a dataframe 
     forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual cases 
