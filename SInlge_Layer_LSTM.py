@@ -195,32 +195,17 @@ def predict_training(model, sc, valgenerator, validation_set, inverseval, trains
 
         ### Prediction ##
        
-        
-        # model.fit(current_batch, epochs=1, verbose=1) 
         current_pred = model.predict(current_batch) # Make a prediction 
-        # print("Current Batch ")
-        # print(current_batch)
-        # print("Prediction")
-        # print(current_pred)
-        # print("Prediction Data")
-        # print(predictiondata)
+
         
         current_pred = float(current_pred[0]) #Convert Prediction to integer 
         predictiondata.loc[len(predictiondata.index)] = [current_pred]   
-        # print(predictiondata[-(seq_size):])
         
         trainpred = predictiondata[-(seq_size)-1:].reset_index(drop='true')
-        # print(trainpred)
 
-        # trainpred=trainpred.to_numpy()
-        # trainpred = TimeseriesGenerator(trainpred, trainpred.iloc[:, 0], length=3, batch_size=1)
-        # trainpred = trainpred.reshape(1, seq_size, n_features)  # Reshape
-        # print(trainpred)
         
         trainpred_generator = TimeseriesGenerator(trainpred, trainpred.iloc[:, 0], length=seq_size, batch_size=1)
 
-        
-        
         model.fit(trainpred_generator, epochs=3, verbose=0) 
         
         
