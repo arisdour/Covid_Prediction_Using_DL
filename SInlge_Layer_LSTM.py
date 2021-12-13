@@ -119,8 +119,8 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
     set3=set3.set_axis(feature_list, axis=1, inplace=False)
     return set1, set2, set3
 
-def model_create(nodes, seq_size , features):
-    opt = keras.optimizers.Adam(learning_rate=0.0001)
+def model_create(nodes, seq_size , features,lr):
+    opt = keras.optimizers.Adam(learning_rate=lr)
     model = Sequential()
     model.add(LSTM(nodes, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
@@ -166,7 +166,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
     
@@ -240,39 +240,38 @@ def predict_training(model, sc, valgenerator, validation_set, inverseval, trains
     
     return forecast
 
-def experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
-                train_set, inv_val, inv_test, dates):
-    for i in range(times):
-        experimentmodel = model_create(nodes, seq_size ,n_features)
+def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
+                train_set, inv_val, inv_test, dates ,lr):
+    experimentmodel = model_create(nodes, seq_size ,n_features, lr)
 
-        experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
-        forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-        plotprediction(forecast ,str(i))
+    forecast = predict_training(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
+    plotprediction(forecast ,str(i))
 
-        mae_4 = mean_absolute_error(forecast['Actual'], forecast['Prediction'])
-        MAE_4.append(mae_4)
+    mae_4 = mean_absolute_error(forecast['Actual'], forecast['Prediction'])
+    MAE_4.append(mae_4)
 
-        mape_4 = mean_absolute_percentage_error(forecast['Actual'], forecast['Prediction'])
-        MAPE_4.append(mape_4)
+    mape_4 = mean_absolute_percentage_error(forecast['Actual'], forecast['Prediction'])
+    MAPE_4.append(mape_4)
 
-        mse_4 = mean_squared_error(forecast['Actual'], forecast['Prediction'])
-        MSE_4.append(mse_4)
+    mse_4 = mean_squared_error(forecast['Actual'], forecast['Prediction'])
+    MSE_4.append(mse_4)
 
-        rmse_4 = mean_squared_error(forecast['Actual'], forecast['Prediction'], squared=False)
-        RMSE_4.append(rmse_4)
+    rmse_4 = mean_squared_error(forecast['Actual'], forecast['Prediction'], squared=False)
+    RMSE_4.append(rmse_4)
 
-        node.append(nodes)
+    node.append(nodes)
 
 
-        mape_4_next_day = mean_absolute_percentage_error(forecast['Actual'][:1], forecast['Prediction'][:1])
-        MAPE_4_Next_day.append(mape_4_next_day)
+    mape_4_next_day = mean_absolute_percentage_error(forecast['Actual'][:1], forecast['Prediction'][:1])
+    MAPE_4_Next_day.append(mape_4_next_day)
  
-        mape_3days = mean_absolute_percentage_error(forecast['Actual'][:3], forecast['Prediction'][:3])
-        MAPE_4_3days.append(mape_3days)
-        
-        mape_7days = mean_absolute_percentage_error(forecast['Actual'][:7], forecast['Prediction'][:7])
-        MAPE_4_7days.append(mape_7days)
+    mape_3days = mean_absolute_percentage_error(forecast['Actual'][:3], forecast['Prediction'][:3])
+    MAPE_4_3days.append(mape_3days)
+    
+    mape_7days = mean_absolute_percentage_error(forecast['Actual'][:7], forecast['Prediction'][:7])
+    MAPE_4_7days.append(mape_7days)
         
         
         
@@ -444,18 +443,19 @@ def Hyper_3(parameter1 , parameter2 , parameter3 , repetitions):
     Hyperparameters=Hyperparameters.sort_values(by=['Nodes', 'Learning Rate' ,'Epochs' ])
     Hyperparameters=pd.concat([Hyperparameters]*times)
     
-    
     Hyperparameters= list(Hyperparameters.itertuples(index=False, name=None))
-    
-    
+
     return Hyperparameters 
 
-def final_experiment(times):
+def hyper_opt(list1 , list2 , list3 ):
     
+    Hyperparameters=Hyper_3(list1,list2,list3, 10)
     start = time.time()
-    for i in range (times):
-        metrics = experiments(times, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
-                        validation_set, train_set, inv_val, inv_test, dates)
+    print(Hyperparameters)
+    for i in range (len(Hyperparameters)):
+        lr , epochs , nodes = Hyperparameters[i]
+        metrics = experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
+                        validation_set, train_set, inv_val, inv_test, dates ,lr)
 
     end = time.time()
     hours, rem = divmod(end - start, 3600)
@@ -465,23 +465,58 @@ def final_experiment(times):
     metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.5f",index=True, header=True)
     return metrics
 
-learning_rate = (0.001,0.0001,0.0005 )
-epochs = (60 , 75 , 150)
-nodes = (18,20,22,25,30,35,44,59,88)
+def final_experiment(times):
+    start = time.time()
+    for i in range (times):
+        
+        metrics = experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
+                        validation_set, train_set, inv_val, inv_test, dates , lr)
+
+    end = time.time()
+    hours, rem = divmod(end - start, 3600)
+    minutes, seconds = divmod(rem, 60)
+    print("{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
+    #Save Results
+    metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.5f",index=True, header=True)
+    return metrics
+
+
+
+
 
 
 
 
 ### Parameters ### 
+learning_rate = (0.001,0.0001 )
+epochs = (1 , 2 , 3)
+nodes = (18,20)
+
 
 location="owid-covid-data.csv"
 feature_list=["total_cases"]
+
 a=str(feature_list)
 n_features = len(feature_list)
-different_nodes = 30
+# different_nodes = 30
 seq_size = 3
 epochs = 60
 times = 10
+nodes=44
+lr=0.0001
+
+
+node = []
+MAE_4 = []
+MAPE_4 = []
+MSE_4 = []
+RMSE_4 = []
+MAPE_4_3days = []
+MAPE_4_7days = []
+MAPE_4_Next_day = []
+
+
+##### Data  Creation #####
 
 dates,greece , Greece_total =createdata(location,feature_list)
 
@@ -507,29 +542,24 @@ train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_feat
 inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,
                                                        dates)
 
+###############################################################################
 
-node = []
-MAE_4 = []
-MAPE_4 = []
-MSE_4 = []
-RMSE_4 = []
-MAPE_4_3days = []
-MAPE_4_7days = []
-MAPE_4_Next_day = []
-
-
+# optmetrics = hyper_opt(epochs, nodes , learning_rate)
 
 metrics =final_experiment(times)
 
-##################################### FIN #######################################
-bestmodel = find_best_model(MAPE_4)
-bestmodel.fit_generator(val_generator, epochs=30, verbose=1) 
-bestmodel.save(r"Models\Final_model_for_"+ a + ".h5")
+##################################### FIN #####################################
 
+bestmodel = find_best_model(MAPE_4)
+
+bestmodel.fit_generator(val_generator, epochs=60, verbose=1) 
+
+bestmodel.save(r"Models\Final_model_for_"+ a + ".h5")
 
 forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
 finalresults=final_results(forecastf)
+
 finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
 
