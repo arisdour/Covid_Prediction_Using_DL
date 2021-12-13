@@ -62,7 +62,6 @@ def split_data(data, sequence):
     
     return train_set, validation_set, test_set
 
-
 def timeseries_gen(seq_size, n_features, train, val, test):
     # Train Set
     train_generator = TimeseriesGenerator(train, train.iloc[:, 0], length=seq_size, batch_size=1)
@@ -81,7 +80,6 @@ def timeseries_gen(seq_size, n_features, train, val, test):
     print("Total number of samples in the generated test data = ", len(test_generator))
     return train_generator, val_generator, test_generator
 
-
 def plotloss(mod, name=""):
     plt.figure(figsize=[12,10] , dpi=140 )
     loss = mod.history['loss']
@@ -96,7 +94,6 @@ def plotloss(mod, name=""):
     plt.savefig("Plots\loss_model" + name +".jpeg"  )
     plt.show()
 
-
 def plotprediction(ypredict , name=""):
     plt.figure(figsize=[12,10] , dpi=140 )
     plt.plot(ypredict.index, ypredict.iloc[:, 0], 'y', label='Prediction ')
@@ -108,8 +105,6 @@ def plotprediction(ypredict , name=""):
     plt.savefig("Plots\pred" + name +".jpeg"  )
     plt.show()
    
-
-
 def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogdata, dates):
     
     drange =dates.loc[0]
@@ -129,7 +124,6 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
     set3=set3.set_axis(feature_list, axis=1, inplace=False)
     return set1, set2, set3
 
-
 def model_create(nodes, seq_size , features):
     model = Sequential()
     model.add(LSTM(22, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
@@ -141,7 +135,6 @@ def model_create(nodes, seq_size , features):
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
     return model
-
 
 def model_train(i, model, traingenerator, valgenerator, ep):
     earlystopping = callbacks.EarlyStopping(monitor ="val_loss", mode ="min", patience = 5, restore_best_weights = True)

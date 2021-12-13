@@ -8,7 +8,7 @@ from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import Dense
-
+from keras import callbacks
 
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error
@@ -120,10 +120,31 @@ def model_create(nodes, seq_size , features,lr):
     model.summary()
     return model
 
+def stacked_model_create(nodes, seq_size , features):
+    model = Sequential()
+    model.add(LSTM(22, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(LSTM(18, return_sequences=False))
+    model.add(Dense(1))
+    model.compile(optimizer='Adam', loss='mean_squared_error')
+    model.summary()
+    return model
+
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
     model.save('Models\model_' + str(i) + '.h5', overwrite=True)
     plotloss(history,str(i))
+    return model
+
+def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
+    earlystopping = callbacks.EarlyStopping(monitor ="val_loss", mode ="min", patience = 5, restore_best_weights = True)
+
+
+    history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep,batch_size= 1 ,verbose=1,callbacks =[earlystopping])
+    model.save('Models\model_' + str(i) + '.h5', overwrite=True)
+    plotloss(history,str(i))
+    avep.append( len(history.history['loss']))
+    
+    
     return model
 
 def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
@@ -219,9 +240,9 @@ def predict_training(model, sc, valgenerator, validation_set, inverseval, trains
 
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lr):
-    experimentmodel = model_create(nodes, seq_size ,n_features, lr)
+    experimentmodel = stacked_model_create(nodes, seq_size ,n_features, lr)
 
-    experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict_training(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
     plotprediction(forecast ,str(i))
@@ -423,7 +444,7 @@ def Hyper_3(parameter1 , parameter2 , parameter3 , repetitions):
 
     return Hyperparameters 
 
-def hyper_opt(list1 , list2 , list3 ):
+def multiple_tests(list1 , list2 , list3 ):
     
     Hyperparameters=Hyper_3(list1,list2,list3, 10)
     start = time.time()
@@ -441,7 +462,7 @@ def hyper_opt(list1 , list2 , list3 ):
     metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.5f",index=True, header=True)
     return metrics
 
-def final_experiment(times):
+def single_test(times):
     start = time.time()
     for i in range (times):
         
@@ -455,11 +476,6 @@ def final_experiment(times):
     #Save Results
     metrics.to_csv("Results\Valdation_Results_for_"+ a +".csv", float_format="%.5f",index=True, header=True)
     return metrics
-
-
-
-
-
 
 
 
@@ -482,6 +498,9 @@ nodes=44
 lr=0.0001
 
 
+avep=[]
+Epochs = []
+LR = []
 node = []
 MAE_4 = []
 MAPE_4 = []
@@ -520,15 +539,24 @@ inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_
 
 ###############################################################################
 
-# optmetrics = hyper_opt(epochs, nodes , learning_rate)
+# optmetrics = multiple_tests(epochs, nodes , learning_rate)
 
-metrics =final_experiment(times)
-
-##################################### FIN #####################################
+metrics =single_test(times)
 
 bestmodel = find_best_model(MAPE_4)
 
-bestmodel.fit_generator(val_generator, epochs=60, verbose=1) 
+
+##################################### Singel Layer Prediction #####################################
+
+
+# bestmodel.fit(val_generator, epochs=60, verbose=1) 
+
+##################################### Stacked Model Prediction ######################################
+
+callback = keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=2)
+bestmodel.fit(val_generator, epochs=60,batch_size=1 ,  callbacks=[callback], verbose=1) 
+
+#####################################################################################################
 
 bestmodel.save(r"Models\Final_model_for_"+ a + ".h5")
 
