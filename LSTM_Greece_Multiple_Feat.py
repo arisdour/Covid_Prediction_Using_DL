@@ -1,14 +1,15 @@
 import pandas as pd
 import numpy as np
-import time
 import matplotlib.pyplot as plt
 
-from tensorflow import keras
+
+
+import tensorflow
 from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import Dense
-
+from tensorflow.keras import callbacks
 
 
 from sklearn.preprocessing import MinMaxScaler
@@ -145,11 +146,33 @@ def model_create(nodes, seq_size , features,lrate):
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
     return model
+def stacked_model_create(seq_size , features):
+    model = Sequential()
+    model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(LSTM(18, return_sequences=True))
+    model.add(LSTM(59, return_sequences=False))
+
+    model.add(Dense(1))
+    model.compile(optimizer='Adam', loss='mean_squared_error')
+    model.summary()
+    return model
 
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
     model.save('Models/model_' + str(i) + '.h5', overwrite=True)
     plotloss(history,str(i))
+    return model
+
+def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
+    earlystopping = callbacks.EarlyStopping(monitor ="val_loss", mode ="min", patience = 5, restore_best_weights = True)
+
+
+    history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep ,verbose=1,callbacks =[earlystopping])
+    model.save('Models\model_' + str(i) + '.h5', overwrite=True)
+    plotloss(history,str(i))
+    # avep.append( len(history.history['loss']))
+    
+    
     return model
 
 def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
@@ -221,7 +244,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         featval = [total_cases,new_cases,new_cases_smoothed,total_cases_per_million,new_cases_per_million,new_cases_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
 
-        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ]#, dictionary[feature_list[2]]  ] # , dictionary[feature_list[4]] ,  dictionary[feature_list[5]] ]
+        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] , dictionary[feature_list[2]]  ] # , dictionary[feature_list[4]] ,  dictionary[feature_list[5]] ]
 
 
         
@@ -364,9 +387,9 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lrate):
     
-    experimentmodel = model_create(nodes, seq_size ,n_features , lrate)
+    experimentmodel = stacked_model_create( seq_size ,n_features)
 
-    experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
     plotprediction(forecast ,str(i))
@@ -410,7 +433,7 @@ def find_best_model(mape):
     mape = pd.DataFrame(mape)
     min = mape.idxmin()
     j = min[0]
-    best_model = keras.models.load_model(r"Models/model_" + str(j) + ".h5")
+    best_model = tensorflow.keras.models.load_model(r"Models/model_" + str(j) + ".h5")
     print("Best Model is :model_" + str(j) + ".h5")
     return best_model
 
@@ -559,9 +582,9 @@ def final_results(dataframe):
 # Sigle Layer Parameters 
 seq_size = 3
 times =10
-combos =2
-nodes= 44
-epochs=75
+combos =3
+epochs=60
+nodes = 0
 
 
 
@@ -588,11 +611,10 @@ flist=flist*times
 
 flist=[ x for x in flist if "total_cases"  in x ] # Must always contain total cases/ deaths 
 
-# flist=[ x for x in flist if "new_cases_smoothed"   in x ] ## Select pairs that i want to male a ;ongterm prediction 
+# flist=[ x for x in flist if "new_cases_smoothed"   in x ] ## Select pairs that i want to male a longterm prediction
 # flist=[ x for x in flist if "new_cases_smoothed_per_million"  in x ]
 
-
-# flist=flist[:1]
+# flist=flist[:2]   ## Contorlo length
 
     
 for i in range(len(flist)):
@@ -646,8 +668,8 @@ metrics = pd.DataFrame(
       'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'Epochs' : Epochs})
 
 metrics=metrics.sort_values(by=['Feat']).reset_index(drop=True)
-metrics[['Feature 1','Feature 2']] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
-metrics1 = metrics.groupby(['Feature 1', 'Feature 2'  ]).mean()
+metrics[['Feature 1','Feature 2', 'Feature 3']] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
+metrics1 = metrics.groupby(['Feature 1', 'Feature 2' ,'Feature 3' ]).mean()
 
  
 
@@ -661,15 +683,15 @@ metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) 
 
 
 
-bestmodel = find_best_model(MAPE_4)
+# bestmodel = find_best_model(MAPE_4)
+# print(bestmodel)
+# #
 
+# bestmodel.fit_generator(val_generator, epochs=60, verbose=1) 
+# # bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
 
-bestmodel.fit_generator(val_generator, epochs=60, verbose=1) 
-bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
+# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
-forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+# finalresults=final_results(forecastf)
 
-finalresults=final_results(forecastf)
-
-finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
-
+# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
