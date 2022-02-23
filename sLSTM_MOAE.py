@@ -133,9 +133,9 @@ def model_create(nodes1 ,nodes2 ,nodes3, seq_size , features):
     model = Sequential()
     model.add(LSTM(nodes1, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
     # model.add(Dropout(0.1))
-    model.add(LSTM(nodes2, return_sequences=True))
+    model.add(LSTM(nodes2, return_sequences=False))
     # model.add(Dropout(0.1))
-    model.add(LSTM(nodes3, return_sequences=False))
+    # model.add(LSTM(nodes3, return_sequences=False))
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -189,14 +189,79 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
     
     
     return forecast
 
+# def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
+
+#     # Forecast   Predict using a for loop
+#     index = inverseval.index
+#     predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
+#     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
+#     current_batch = trainset[-seq_size:]
+#     forecast = pd.DataFrame()
+
+#     # Predict future, beyond test dates
+#     future = len(validation_set) - seq_size  # Days
+#     for i in range(future):
+                
+#         current_batch = predictiondata[i:seq_size + i] #Create input for LSTM (Based on sequence size )
+
+#         current_batch = current_batch.to_numpy()  #Input to array 
+
+#         current_batch = current_batch.reshape(1, seq_size, n_features)  # Reshape
+
+#         ### Prediction ##
+       
+        
+#         # model.fit(current_batch, epochs=1, verbose=1) 
+#         current_pred = model.predict(current_batch) # Make a prediction 
+#         # print("Current Batch ")
+#         # print(current_batch)
+#         # print("Prediction")
+#         # print(current_pred)
+#         # print("Prediction Data")
+#         # print(predictiondata)
+        
+#         current_pred = float(current_pred[0]) #Convert Prediction to integer 
+#         predictiondata.loc[len(predictiondata.index)] = [current_pred]   
+#         # print(predictiondata[-(seq_size):])
+        
+#         trainpred = predictiondata[-(seq_size)-1:].reset_index(drop='true')
+#         # print(trainpred)
+
+#         # trainpred=trainpred.to_numpy()
+#         # trainpred = TimeseriesGenerator(trainpred, trainpred.iloc[:, 0], length=3, batch_size=1)
+#         # trainpred = trainpred.reshape(1, seq_size, n_features)  # Reshape
+#         # print(trainpred)
+        
+#         trainpred_generator = TimeseriesGenerator(trainpred, trainpred.iloc[:, 0], length=seq_size, batch_size=1)
+
+        
+        
+#         model.fit(trainpred_generator, epochs=3, verbose=0) 
+        
+        
+        
+        
+        
+
+    forecast = predictiondata[-(future):] #Save results in a dataframe 
+    forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual cases 
+    forecast = pd.DataFrame(forecast.round()) #Round results 
+    forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
+
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+
+    forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
+    
+    
+    return forecast
 def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
     hp1 = list(product(parameter1 , parameter2 ))
     Hyperparameters = list (product(hp1 , parameter3))
@@ -269,10 +334,26 @@ def experiments(times, nodes1,nodes2,nodes3, scaler, seq_size, epochs, n_feature
     return 
 
 
+def Hyper2(parameter1 , parameter2 , repetitions):
+    hp1 = list(product(parameter1 , parameter2 ))
+    # Hyperparameters = list (product(hp1 , parameter3))
+    Hyperparameters= pd.DataFrame(hp1).rename(columns={0: "Nodes", 1: "Epochs"})
+    
+    # Hyperparameters[['Learning Rate' , 'Epochs']]= pd.DataFrame(Hyperparameters['A'].tolist(), index=Hyperparameters.index)
+    
+    Hyperparameters=Hyperparameters.sort_values(by=['Nodes' ,'Epochs' ])
+    Hyperparameters=pd.concat([Hyperparameters]*times)
+    
+    
+    Hyperparameters= list(Hyperparameters.itertuples(index=False, name=None))
+    
+    
+    return Hyperparameters 
+
 
 
 Windeos_loc="owid-covid-data.csv"
-feature_list=["total_cases"]
+feature_list=["total_deaths"]
 n_features = len(feature_list)
 seq_size = 3
 
@@ -283,13 +364,13 @@ seq_size = 3
 nodes_0 = [30,30]
 # nodes_1 = [18,20,22,25,30,35,44,59,88]
 nodes_2 = [18,20,22,25,30,35,44,59,88]
+# nodes_2 = [18,20]
+
+times = 10 #For each experiment
 
 
-times = 5 #For each experiment
 
-
-
-Hyperparameters= Hyper(nodes_2, nodes_2, nodes_2 ,times )
+Hyperparameters= Hyper2(nodes_2, nodes_2 ,times )
 
 
 
@@ -328,8 +409,9 @@ Batch=[]
 start = time.time()
 
 for i in  range(len(Hyperparameters)):
-    thirdnodes, secondnodes , firstnodes = Hyperparameters[i]
+    secondnodes , firstnodes = Hyperparameters[i]
     epochs=60
+    thirdnodes = 0
     bacthsize = 1
     experiments(i, firstnodes , secondnodes,thirdnodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , bacthsize )
 
