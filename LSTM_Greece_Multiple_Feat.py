@@ -244,7 +244,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         featval = [total_cases,new_cases,new_cases_smoothed,total_cases_per_million,new_cases_per_million,new_cases_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
 
-        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] , dictionary[feature_list[2]]  ] # , dictionary[feature_list[4]] ,  dictionary[feature_list[5]] ]
+        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] , dictionary[feature_list[2]] ] #    , dictionary[feature_list[3]]  ] 
 
 
         
@@ -611,8 +611,8 @@ flist=flist*times
 
 flist=[ x for x in flist if "total_cases"  in x ] # Must always contain total cases/ deaths 
 
-# flist=[ x for x in flist if "new_cases_smoothed"   in x ] ## Select pairs that i want to male a longterm prediction
-# flist=[ x for x in flist if "new_cases_smoothed_per_million"  in x ]
+flist=[ x for x in flist if "new_cases_smoothed"   in x ] ## Select pairs that i want to male a longterm prediction
+flist=[ x for x in flist if "new_cases_smoothed_per_million"  in x ]
 
 # flist=flist[:2]   ## Contorlo length
 
@@ -668,8 +668,8 @@ metrics = pd.DataFrame(
       'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'Epochs' : Epochs})
 
 metrics=metrics.sort_values(by=['Feat']).reset_index(drop=True)
-metrics[['Feature 1','Feature 2', 'Feature 3']] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
-metrics1 = metrics.groupby(['Feature 1', 'Feature 2' ,'Feature 3' ]).mean()
+metrics[['Feature 1','Feature 2', 'Feature 3' ]] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
+metrics1 = metrics.groupby(['Feature 1','Feature 2', 'Feature 3' ]).mean()
 
  
 
@@ -683,15 +683,15 @@ metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) 
 
 
 
-# bestmodel = find_best_model(MAPE_4)
-# print(bestmodel)
-# #
+bestmodel = find_best_model(MAPE_4)
+print(bestmodel)
+#
 
-# bestmodel.fit_generator(val_generator, epochs=60, verbose=1) 
-# # bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
+bestmodel.fit_generator(val_generator, epochs=20, verbose=1) 
+# bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
 
-# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
-# finalresults=final_results(forecastf)
+finalresults=final_results(forecastf)
 
-# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
+finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
