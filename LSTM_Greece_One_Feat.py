@@ -3,8 +3,8 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-from tensorflow import keras
-from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+from tensorflow import keras 
+from keras.preprocessing.sequence import TimeseriesGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import Dense
@@ -122,8 +122,10 @@ def model_create(nodes, seq_size , features,lr):
 
 def stacked_model_create(nodes, seq_size , features):
     model = Sequential()
-    model.add(LSTM(22, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(LSTM(18, return_sequences=False))
+    model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(LSTM(18, return_sequences=True))
+    model.add(LSTM(59, return_sequences=False))
+
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -179,7 +181,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
     
@@ -231,7 +233,7 @@ def predict_training(model, sc, valgenerator, validation_set, inverseval, trains
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
     
@@ -240,11 +242,11 @@ def predict_training(model, sc, valgenerator, validation_set, inverseval, trains
 
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lr):
-    experimentmodel = stacked_model_create(nodes, seq_size ,n_features, lr)
+    experimentmodel = stacked_model_create(nodes, seq_size ,n_features)
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
-    forecast = predict_training(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
+    forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
     plotprediction(forecast ,str(i))
 
     mae_4 = mean_absolute_error(forecast['Actual'], forecast['Prediction'])
@@ -486,7 +488,7 @@ nodes = (18,20)
 
 
 location="owid-covid-data.csv"
-feature_list=["total_cases"]
+feature_list=["total_deaths"]
 
 a=str(feature_list)
 n_features = len(feature_list)
@@ -529,13 +531,9 @@ validation_set=validation_set.set_axis(feature_list, axis=1, inplace=False)
 test_set=pd.DataFrame(scaler.transform(test_set))
 test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
 
+train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,test_set)
 
-train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
-                                                                test_set)
-
-
-inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,
-                                                       dates)
+inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,dates)
 
 ###############################################################################
 
@@ -553,14 +551,14 @@ bestmodel = find_best_model(MAPE_4)
 
 ##################################### Stacked Model Prediction ######################################
 
-callback = keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=2)
+callback = keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
 bestmodel.fit(val_generator, epochs=60,batch_size=1 ,  callbacks=[callback], verbose=1) 
 
 #####################################################################################################
 
 bestmodel.save(r"Models\Final_model_for_"+ a + ".h5")
 
-forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+forecastf = predict_training(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
 finalresults=final_results(forecastf)
 
