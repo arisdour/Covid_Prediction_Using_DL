@@ -52,42 +52,39 @@ Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smooth
 Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
 
 
-def FeatureSelection(df,K):
+
+first_n_column  = Greece_total.iloc[:369 , :14]
+second_n_column = Greece_total.iloc[:369 , 22:26]
+
+
+first_n_column=pd.concat([first_n_column, second_n_column], axis=1)
+first_n_column['stringency_index'] = Greece_total['stringency_index']
+first_n_column = first_n_column.reindex(sorted(first_n_column.columns), axis=1)
+first_n_column = first_n_column.dropna()
+second_n_column= second_n_column.dropna()
+
+
+
+fs = SelectKBest(score_func=f_regression, k=10)
+
+y=first_n_column['total_cases'] # Set Total Cases as a Target
+dates = Greece_total['date']
+X=first_n_column.drop( columns=[ 'date' , 'total_cases']) # Remove Total Cases 
+
+
+# y=df['total_cases'] # Set Total Cases as a Target
+# dates = df['date']
+# X=df.drop( columns=[ 'date' , 'total_cases','tests_units']) # Remove Total Cases 
+X_selected =fs.fit_transform(X, y)
+
+# X_selected=pd.concat([X_selected, y] , axis=1)
+
+selected_col = fs.get_support(indices = True)
+Res = X.iloc[:, selected_col]
+
+Res=pd.concat([y,Res ] , axis=1)
+Final=pd.concat([dates,Res ] , axis=1)
+Final=Final.dropna()
+Final2=Final.columns
     
-    first_n_column  = df.iloc[:369 , :14]
-    second_n_column = df.iloc[:369 , 22:26]
 
-
-    first_n_column=pd.concat([first_n_column, second_n_column], axis=1)
-    first_n_column['stringency_index'] = Greece_total['stringency_index']
-    first_n_column = first_n_column.reindex(sorted(first_n_column.columns), axis=1)
-    first_n_column = first_n_column.dropna()
-    second_n_column= second_n_column.dropna()
-
-
-
-    fs = SelectKBest(score_func=f_regression, k=K)
-
-    y=first_n_column['total_cases'] # Set Total Cases as a Target
-    dates = df['date']
-    X=first_n_column.drop( columns=[ 'date' , 'total_cases']) # Remove Total Cases 
-
-
-    # y=df['total_cases'] # Set Total Cases as a Target
-    # dates = df['date']
-    # X=df.drop( columns=[ 'date' , 'total_cases','tests_units']) # Remove Total Cases 
-    X_selected =fs.fit_transform(X, y)
-
-    # X_selected=pd.concat([X_selected, y] , axis=1)
-
-    selected_col = fs.get_support(indices = True)
-    Res = X.iloc[:, selected_col]
-    
-    Res=pd.concat([y,Res ] , axis=1)
-    Final=pd.concat([dates,Res ] , axis=1)
-    Final=Final.dropna()
-    Final2=Final.columns
-    return Final2 ,Final
-
-lour , lour1 =FeatureSelection(Greece_total, 5)
-lour2=Greece_total[lour]

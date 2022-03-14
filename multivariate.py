@@ -17,6 +17,7 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import f_regression
+from sklearn.feature_selection import mutual_info_regression
     
 import itertools
 from itertools  import product
@@ -63,6 +64,8 @@ def featcombos(featurename ,titles , combin) :
 
 def createdata(dataset,Κ):
     columns=FeatureSelection(dataset, Κ)
+    # columns = ['date', 'total_cases']
+    print(columns)
     Greece=dataset[columns]
     Greece=Greece.dropna(axis=0)
     Greece=Greece.reset_index(drop=True)
@@ -160,8 +163,8 @@ def model_create(nodes, seq_size , features,lrate):
     return model
 def stacked_model_create(seq_size , features):
     model = Sequential()
-    model.add(LSTM(20, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
-    # model.add(LSTM(59, return_sequences=False))
+    model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(LSTM(59, return_sequences=False))
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -587,7 +590,10 @@ def FeatureSelection(df,K):
     # plt.tight_layout()
     # plt.show()
 
-    fs = SelectKBest(score_func=f_regression, k=K)
+    # fs = SelectKBest(score_func=f_regression, k=K)            # Use F regression 
+    fs = SelectKBest(score_func=mutual_info_regression, k=K)    #use mutual info 
+
+    
 
     y=first_n_column['total_cases'] # Set Total Cases as a Target
     dates = df['date']
