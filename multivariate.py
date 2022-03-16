@@ -154,10 +154,10 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
     set3=set3.set_axis(feature_list, axis=1, inplace=False)
     return set1, set2, set3
 
-def model_create(nodes, seq_size , features,lrate):
+def model_create( seq_size , features):
     model = Sequential()
     model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
-    model.add(Dense(1))
+    model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
     return model
@@ -385,7 +385,7 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lrate):
     
-    experimentmodel = stacked_model_create( seq_size ,n_features)
+    experimentmodel = model_create( seq_size ,n_features)
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
@@ -571,9 +571,6 @@ def final_results(dataframe):
     finalresults=finalresults.set_index(['NAMES'])
     return finalresults
 
-
-
-
 def FeatureSelection(df,K):
     
     first_n_column  = df.iloc[369: , :14]
@@ -619,13 +616,6 @@ def FeatureSelection(df,K):
 ##########################  MAIN ##############################################
 
 
-
-
-
-
-
-
-
 Epochs = []
 LR = []
 node = []
@@ -643,8 +633,8 @@ loc="owid-covid-data.csv"
 
 seq_size = 3
 epochs = 60
-times = 1
-Κ= 4
+times = 10
+Κ= 1
 nodes=0
 
 
@@ -708,5 +698,7 @@ metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) 
 
 
 
+text = '🖥 PC Done 🖥'
+telegram_bot_sendtext(text)
 
 
