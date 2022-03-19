@@ -64,7 +64,7 @@ def featcombos(featurename ,titles , combin) :
 
 def createdata(dataset,Κ):
     columns=FeatureSelection(dataset, Κ)
-    # columns = ['date', 'total_cases']
+    columns = ['date', 'total_cases', 'new_vaccinations_smoothed']
     print(columns)
     Greece=dataset[columns]
     Greece=Greece.dropna(axis=0)
@@ -86,9 +86,19 @@ def mean_absolute_percentage_error(y_true, y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
 def split_data(data, sequence):
-    train_set = data[:355].reset_index(drop=True)
-    validation_set = data[355 - sequence:369].reset_index(drop=True)
-    test_set = data[369 - sequence:].reset_index(drop=True) 
+    if (len(data)<400):
+        
+        length = len(data)
+        a = round(0.75*(length-60))
+                  
+        train_set = data[:a].reset_index(drop=True)
+        validation_set = data[(a - sequence):(length-60)].reset_index(drop=True)
+        test_set = data[length-60:].reset_index(drop=True) 
+        
+    else:
+        train_set = data[:355].reset_index(drop=True)
+        validation_set = data[355 - sequence:369].reset_index(drop=True)
+        test_set = data[369 - sequence:].reset_index(drop=True) 
     
     return train_set, validation_set, test_set
 
@@ -450,6 +460,9 @@ def FeatureSelection(df,K):
 
     first_n_column=pd.concat([first_n_column, second_n_column], axis=1)
     first_n_column['stringency_index'] = Greece_total['stringency_index']
+    first_n_column['new_vaccinations_smoothed'] = Greece_total['new_vaccinations_smoothed']
+    first_n_column['new_vaccinations_smoothed_per_million'] = Greece_total['new_vaccinations_smoothed_per_million']
+
     first_n_column = first_n_column.reindex(sorted(first_n_column.columns), axis=1)
     first_n_column = first_n_column.dropna()
     second_n_column= second_n_column.dropna()
@@ -575,12 +588,12 @@ telegram_bot_sendtext(text)
 bestmodel = find_best_model(MAPE_4)
 print(bestmodel)
 
-bestmodel.fit_generator(val_generator, epochs=6, verbose=1) 
+bestmodel.fit_generator(val_generator, epochs=16, verbose=1) 
 # bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
 
 forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
 finalresults=final_results(forecastf)
 
-finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
+# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
