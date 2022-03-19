@@ -196,7 +196,6 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     
     predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
-    # print(predictiondata.columns)
     
         
     current_batch = trainset[-seq_size:]
@@ -216,141 +215,13 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         current_pred = model.predict(current_batch)# Make a prediction 
         # current_pred = current_pred.flatten()
         current_pred = pd.DataFrame(current_pred)
-        # print(current_pred)
-        
-        # print(type(current_pred))
-        # current_pred = pd.Series(current_pred)
-        # total_cases = float(current_pred[0]) #Convert Prediction to integer 
-        
-        # print("Current Pred : "  ,current_pred)
-        
-        
-        
 
-        
-        # #Add New Day Values 
-        # Featnames = ['total_cases','new_cases','new_cases_smoothed','total_cases_per_million','new_cases_per_million','new_cases_smoothed_per_million']
-        # featval = [total_cases,new_cases,new_cases_smoothed,total_cases_per_million,new_cases_per_million,new_cases_smoothed_pre_million]
-        # dictionary = dict(zip(Featnames, featval))
-
-        # # usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ]# , dictionary[feature_list[2]] ,dictionary[feature_list[3]]  , dictionary[feature_list[4]] ] #    , dictionary[feature_list[3]]  ] 
-        # predictiondata['total_cases'] = current_pred[0][0]
-        # predictiondata['new_cases'] = current_pred[0][1]
-        # print(predictiondata)
-        
-        # predictiondata.loc[len(predictiondata.index)] = current_batch
-        # predictiondata=pd.concat([predictiondata, current_pred] , axis=0 , ignore_index=True)
         col_rename_dict = {i:j for i,j in zip(current_pred.columns,predictiondata.columns)}
         current_pred.rename(columns=col_rename_dict, inplace=True)
         
         predictiondata=pd.concat([predictiondata,current_pred], ignore_index=True)
-        # predictiondata=pd.concat([predictiondata,current_pred.rename(columns={0:'total_cases' , 1:'new_cases' ,2:'total_deaths'})], ignore_index=True)
-        # predictiondata=predictiondata.append(current_pred, ignore_index=(True))
-        # print("Test")
-        # print(predictiondata)
-        
-    
-    
-
-    forecast = predictiondata[-(future):] #Save results in a dataframe 
-    forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual cases 
-    forecast = pd.DataFrame(forecast.round()) #Round results 
-    forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
-
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
-
-    forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
-    
-    
-    
-    
-    return forecast
-
-def predict_training(model, sc, valgenerator, validation_set, inverseval, trainset ):
-
-
-    # Forecast   Predict using a for loop
-    index = inverseval.index
-    
-    predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
-    predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
-    
-    
-    A=[	1492, 1482, 1323, 1372, 1222, 662]
-    newcasesprediction = pd.DataFrame(A)
-    
-    current_batch = trainset[-seq_size:]
-    forecast = pd.DataFrame()
-
-    # Predict future, beyond test dates
-    future = len(validation_set) - seq_size  # Days
-    for i in range(future): #instead of future
-        
-        current_batch = predictiondata[i:seq_size + i] #Create input for LSTM (Based on sequence size )
-        current_batch = current_batch.to_numpy()  #Input to array 
-        current_batch = current_batch.reshape(1, seq_size, n_features)  # Reshape
-
-        ### Prediction ##
-        
-        current_pred = model.predict(current_batch) # Make a prediction 
-        total_cases = float(current_pred[0]) #Convert Prediction to integer 
-        total_cases= total_cases /5.80966e-06 #De-scale
-        
-        
-        
-        # ##### Create New Day Values #####
-        
-        #### Total cases ####
-        
-        total_cases_per_million = total_cases * 0.096 #Calculate Total Caces per million 
-        
-        #### New cases ####
-        
-        new_cases= total_cases-(predictiondata.iloc[len(predictiondata.index)-1,0])/5.80966e-06 # Calculate  new casesDe-scaled
-        
-        new_cases_per_million = new_cases*0.096  #Calculate New per million 
-        
-        
-        newcasesprediction.loc[len(newcasesprediction.index)] = [new_cases] #append new cases 
-        smoothednew = newcasesprediction.rolling(window=7).mean()
-        new_cases_smoothed = float( smoothednew.iloc[6+i])
-        
-        new_cases_smoothed_pre_million= new_cases_smoothed * 0.096  #Calculate Smoothed Permillion New cases 
-        
-        
-        #Scale Back 
-        
-        total_cases = total_cases * 5.80966e-06
-        new_cases = new_cases * 0.000301568
-        new_cases_smoothed = new_cases_smoothed * 0.000374211
-        total_cases_per_million = total_cases_per_million * 5.82583e-05
-        new_cases_per_million = new_cases_per_million * 0.00314326
-        new_cases_smoothed_pre_million = new_cases_smoothed_pre_million * 0.00389804
-        
 
         
-        
-        #Add New Day Values 
-        Featnames = ['total_cases','new_cases','new_cases_smoothed','total_cases_per_million','new_cases_per_million','new_cases_smoothed_per_million']
-        featval = [total_cases,new_cases,new_cases_smoothed,total_cases_per_million,new_cases_per_million,new_cases_smoothed_pre_million]
-        dictionary = dict(zip(Featnames, featval))
-
-        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ] #, dictionary[feature_list[2]]   , dictionary[feature_list[4]] ,  dictionary[feature_list[5]] ]
-
-
-        
-        predictiondata.loc[len(predictiondata.index)] = usedval
-        
-        trainpred = predictiondata[-(seq_size)-1:].reset_index(drop='true')
-
-        
-        trainpred_generator = TimeseriesGenerator(trainpred, trainpred.iloc[:, 0], length=seq_size, batch_size=1)
-
-        model.fit(trainpred_generator, epochs=1, verbose=1) 
-        
-    
-    
-
     forecast = predictiondata[-(future):] #Save results in a dataframe 
     forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual cases 
     forecast = pd.DataFrame(forecast.round()) #Round results 
@@ -701,4 +572,15 @@ metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) 
 text = '🖥 PC Done 🖥'
 telegram_bot_sendtext(text)
 
+bestmodel = find_best_model(MAPE_4)
+print(bestmodel)
+
+bestmodel.fit_generator(val_generator, epochs=6, verbose=1) 
+# bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
+
+forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+
+finalresults=final_results(forecastf)
+
+finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
