@@ -64,7 +64,7 @@ def featcombos(featurename ,titles , combin) :
 
 def createdata(dataset,Κ):
     columns=FeatureSelection(dataset, Κ)
-    columns = ['date', 'total_cases', 'new_vaccinations_smoothed']
+    # columns = ['date', 'total_cases', 'new_vaccinations_smoothed']
     print(columns)
     Greece=dataset[columns]
     Greece=Greece.dropna(axis=0)
@@ -89,7 +89,7 @@ def split_data(data, sequence):
     if (len(data)<400):
         
         length = len(data)
-        a = round(0.75*(length-60))
+        a = round(0.89*(length-60))
                   
         train_set = data[:a].reset_index(drop=True)
         validation_set = data[(a - sequence):(length-60)].reset_index(drop=True)
@@ -167,6 +167,8 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 def model_create( seq_size , features):
     model = Sequential()
     model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    # model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total Deaths
+
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -174,7 +176,7 @@ def model_create( seq_size , features):
 def stacked_model_create(seq_size , features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(LSTM(59, return_sequences=False))
+    model.add(LSTM(20, return_sequences=False))
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -267,6 +269,8 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
                 train_set, inv_val, inv_test, dates ,lrate):
     
     experimentmodel = model_create( seq_size ,n_features)
+    # experimentmodel = stacked_model_create( seq_size ,n_features) #stacked
+
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
@@ -518,7 +522,7 @@ loc="owid-covid-data.csv"
 seq_size = 3
 epochs = 60
 times = 10
-Κ= 1
+Κ= 19
 nodes=0
 
 
@@ -585,15 +589,15 @@ metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) 
 text = '🖥 PC Done 🖥'
 telegram_bot_sendtext(text)
 
-bestmodel = find_best_model(MAPE_4)
-print(bestmodel)
+# bestmodel = find_best_model(MAPE_4)
+# print(bestmodel)
 
-bestmodel.fit_generator(val_generator, epochs=16, verbose=1) 
-# bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
+# bestmodel.fit_generator(val_generator, epochs=10, verbose=1) 
+# # bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
 
-forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
-finalresults=final_results(forecastf)
+# finalresults=final_results(forecastf)
 
-# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
+# finalresults.to_csv("Results\Final_Results_for_" +  str(len(feature_list)) +".csv", float_format="%.3f",index=True, header=True)
 
