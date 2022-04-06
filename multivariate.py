@@ -64,7 +64,7 @@ def featcombos(featurename ,titles , combin) :
 
 def createdata(dataset,Κ):
     columns=FeatureSelection(dataset, Κ)
-    # columns = ['date', 'total_cases', 'new_vaccinations_smoothed']
+    columns = ['date', 'total_cases']# 'new_vaccinations_smoothed']
     print(columns)
     Greece=dataset[columns]
     Greece=Greece.dropna(axis=0)
@@ -176,7 +176,9 @@ def model_create( seq_size , features):
 def stacked_model_create(seq_size , features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(LSTM(20, return_sequences=True))
     model.add(LSTM(20, return_sequences=False))
+
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -308,6 +310,7 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
     Features.append(feature_list)
 
     LR.append(lrate)
+    MID.append(mid)
         
 
     return 
@@ -515,14 +518,17 @@ MAPE_4_3days = []
 MAPE_4_7days = []
 MAPE_4_Next_day = []
 Features = []
+MID=[]
 
 loc="owid-covid-data.csv"
 
-
+mid=0
 seq_size = 3
 epochs = 60
 times = 10
-Κ= 19
+Klist= [19,17,15,13,11,9,7,5,4,3,2,1]
+Klist= [1]
+
 nodes=0
 
 
@@ -538,66 +544,86 @@ Greece_total['new_deaths_smoothed']= Greece_total['new_deaths'].rolling(window=7
 Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
 Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
 
-dates,greece  =createdata(Greece_total,Κ)
 
-feature_list=(greece.columns).to_list()
-a=str(feature_list)
-n_features = len(feature_list)
+for i in range(len(Klist)):
 
-train_set, validation_set, test_set = split_data( greece, seq_size)
-scaler = MinMaxScaler() 
-scaler.fit(train_set)
-
-train_set=pd.DataFrame(scaler.transform(train_set))
-train_set=train_set.set_axis(feature_list, axis=1, inplace=False)
-
-validation_set=pd.DataFrame(scaler.transform(validation_set))
-validation_set=validation_set.set_axis(feature_list, axis=1, inplace=False)
-
-test_set=pd.DataFrame(scaler.transform(test_set))
-test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
-
-train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,test_set)
-
-inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,dates)
-
-# a,b=test_generator[3]
-
-for i in range (times):
-    experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , 0.0001 )
-
-### Format Rsults ###
-
-
-
+    # print(K[i])
+    K=Klist[i]
+    print(K)
+    # K=19
+    mid=mid+1
+    dates,greece  =createdata(Greece_total,K)
+    
+    feature_list=(greece.columns).to_list()
+    a=str(feature_list)
+    n_features = len(feature_list)
+    
+    train_set, validation_set, test_set = split_data( greece, seq_size)
+    scaler = MinMaxScaler() 
+    scaler.fit(train_set)
+    
+    train_set=pd.DataFrame(scaler.transform(train_set))
+    train_set=train_set.set_axis(feature_list, axis=1, inplace=False)
+    
+    validation_set=pd.DataFrame(scaler.transform(validation_set))
+    validation_set=validation_set.set_axis(feature_list, axis=1, inplace=False)
+    
+    test_set=pd.DataFrame(scaler.transform(test_set))
+    test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
+    
+    train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,test_set)
+    
+    inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,dates)
+    
+    # a,b=test_generator[3]
+    
+    
+    for i in range (times):
+        experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , 0.0001 )
+    
+    ### Format Rsults ###
+    
+    
+    
 metrics = pd.DataFrame(
-    {'Feat':Features  ,'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
-      'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'Epochs' : Epochs})
+{'Feat':Features  ,'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
+  'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'mid' : MID})
+
+
+test = pd.DataFrame(metrics['Feat'].tolist())
+test2=pd.concat([metrics, test], axis=1)
+test2=test2.drop(columns=["Feat"])
+# Features = metrics["Feat"]
+# test=metrics.explode("Feat")
+test3 = test2.groupby("mid").mean(numeric_only=True)
+
 
 # metrics=metrics.sort_values(by=[feature_list]).reset_index(drop=True)
-metrics[feature_list] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
-metrics1 = metrics.groupby(feature_list).mean()
-
+# metrics[feature_list] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
+# metrics1 = test.groupby("mid").mean()
+# 
  
 
-# #Save Results
-metrics.to_csv("Results/Valdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
-metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
+# # #Save Results
+metrics.to_csv("Results/Valdation_Results_for_"+ str(len(feature_list)) + "_"+ str(K)+ ".csv", float_format="%.5f",index=True, header=True)
+# metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
+test2.to_csv("Results/AverageValdation_Results_for_test2_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
+test3.to_csv("Results/AverageValdation_Results_for_test3_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
 
 
 
 text = '🖥 PC Done 🖥'
 telegram_bot_sendtext(text)
 
-# bestmodel = find_best_model(MAPE_4)
-# print(bestmodel)
+bestmodel = find_best_model(MAPE_4)
+print(bestmodel)
 
-# bestmodel.fit_generator(val_generator, epochs=10, verbose=1) 
-# # bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
+bestmodel.fit_generator(val_generator, epochs=10, verbose=1) 
+# bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
 
-# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
-# finalresults=final_results(forecastf)
+finalresults=final_results(forecastf)
 
-# finalresults.to_csv("Results\Final_Results_for_" +  str(len(feature_list)) +".csv", float_format="%.3f",index=True, header=True)
+finalresults.to_csv("Results\Final_Results_for_" +  str(len(feature_list)) +".csv", float_format="%.3f",index=True, header=True)
 
