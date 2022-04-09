@@ -601,3 +601,4 @@ forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, valid
 finalresults=final_results(forecastf)
 
 finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
+print("Github account Check")
