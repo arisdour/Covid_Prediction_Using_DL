@@ -167,7 +167,7 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 def model_create( seq_size , features):
     model = Sequential()
     model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
-    # model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total Deaths
+    # model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total cases
 
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -270,8 +270,8 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lrate):
     
-    experimentmodel = model_create( seq_size ,n_features)
-    # experimentmodel = stacked_model_create( seq_size ,n_features) #stacked
+    # experimentmodel = model_create( seq_size ,n_features)
+    experimentmodel = stacked_model_create( seq_size ,n_features) #stacked
 
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
@@ -526,7 +526,7 @@ mid=0
 seq_size = 3
 epochs = 60
 times = 10
-Klist= [19,17,15,13,11,9,7,5,4,3,2,1]
+# Klist= [19,17,15,13,11,9,7,5,4,3,2,1]
 Klist= [1]
 
 nodes=0
@@ -538,12 +538,28 @@ nodes=0
 
 ##### Data  Creation #####
 Greece_total , titles =readdata(loc)
-Greece_total['new_deaths_smoothed']= Greece_total['new_deaths'].rolling(window=7).mean()
-Greece_total['new_deaths_smoothed']= Greece_total['new_deaths'].rolling(window=7).mean()
+Greece_total['new_cases_smoothed']= Greece_total['new_cases'].rolling(window=7).mean()
+Greece_total['new_cases_smoothed']= Greece_total['new_cases'].rolling(window=7).mean()
 
-Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
-Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
+Greece_total['new_cases_smoothed_per_million']= Greece_total['new_cases_smoothed']*0.096
+Greece_total['new_cases_smoothed_per_million']= Greece_total['new_cases_smoothed']*0.096
+# test=Greece_total.columns
 
+# def featcombos(featurename ,titles ) :
+    
+#     titles.str.contains(featurename)
+#     features = titles[titles.str.contains(featurename)].to_list()
+#     print(features)
+#     # feature_list = list(combinations(features , combin))
+    
+#     return features
+
+# va=featcombos('vaccinations', test)
+# vaccinations = Greece_total[va]
+# vaccinations['date']= Greece_total['date']
+
+
+# test= vaccinations.iloc[319:328]
 
 for i in range(len(Klist)):
 
@@ -605,10 +621,10 @@ test3 = test2.groupby("mid").mean(numeric_only=True)
  
 
 # # #Save Results
-metrics.to_csv("Results/Valdation_Results_for_"+ str(len(feature_list)) + "_"+ str(K)+ ".csv", float_format="%.5f",index=True, header=True)
+metrics.to_csv("Results/Analytical_1_Valdation_Results_for_"+ str(len(feature_list)) + "_"+ str(K)+ ".csv", float_format="%.5f",index=True, header=True)
 # metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
-test2.to_csv("Results/AverageValdation_Results_for_test2_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
-test3.to_csv("Results/AverageValdation_Results_for_test3_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
+test2.to_csv("Results/Analytical_Valdation_Results_for_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
+test3.to_csv("Results/Average_Valdation_Results_for_test3_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
 
 
 
@@ -618,7 +634,7 @@ telegram_bot_sendtext(text)
 bestmodel = find_best_model(MAPE_4)
 print(bestmodel)
 
-bestmodel.fit_generator(val_generator, epochs=10, verbose=1) 
+bestmodel.fit_generator(val_generator, epochs=7, verbose=1) 
 # bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
 
 forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
