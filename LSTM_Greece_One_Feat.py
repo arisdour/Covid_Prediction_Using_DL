@@ -21,6 +21,7 @@ import requests
 
 
 
+
 ########################## Functions   ###################################
 
 def createdata(location , feature_list):
@@ -88,7 +89,7 @@ def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.title('Predicted vs  Actual '  + pname + '  in Greece for ' +str(len(ypredict)) + ' days')
     plt.suptitle(predtype)
     plt.xlabel('Date')
-    plt.ylabel('Cases')
+    plt.ylabel('Deaths')
     plt.legend()
     plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
     plt.show()
@@ -184,17 +185,17 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
        
     forecast = predictiondata[-(future):] #Save results in a dataframe 
-    forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual cases 
+    forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual Deaths 
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
 
 
 
-    predictN4 = sc.inverse_transform(predict1)#Inverse Transform to get the actual cases
+    predictN4 = sc.inverse_transform(predict1)#Inverse Transform to get the actual Deaths
     predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Prediction N4'}) #Round results
     # print(predictN4)
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
@@ -526,16 +527,16 @@ nodes = (18,20)
 
 
 location="owid-covid-data.csv"
-feature_list=["total_cases"]
+feature_list=["total_deaths"]
 
 a=str(feature_list)
 n_features = len(feature_list)
 # different_nodes = 30
 seq_size = 3
-epochs = 75
+epochs = 60
 times = 10
-nodes=44
-pname= 'Cases'
+nodes=30
+pname= 'Deaths'
 lr=0.0001
 
 
@@ -593,7 +594,7 @@ bestmodel = find_best_model(MAPE_4)
 ##################################### Singel Layer Prediction #####################################
 
 
-bestmodel.fit(val_generator, epochs=25, verbose=1)
+bestmodel.fit(val_generator, epochs=10, verbose=1)
 
 ##################################### Stacked Model Prediction ######################################
 
@@ -610,15 +611,7 @@ forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, valid
 finalresults=final_results(forecastf)
 
 finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
-#
 
-
-print(forecastf)
-
-
-
-
-#
 
 
 
