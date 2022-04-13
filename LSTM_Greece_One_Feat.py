@@ -90,7 +90,7 @@ def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.xlabel('Date')
     plt.ylabel('Cases')
     plt.legend()
-    plt.savefig("Plots\pred" + name +".jpeg"  )
+    plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
     plt.show()
    
 def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogdata, dates):
@@ -142,7 +142,7 @@ def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
     earlystopping = callbacks.EarlyStopping(monitor ="val_loss", mode ="min", patience = 5, restore_best_weights = True)
 
 
-    history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep,batch_size= 1 ,verbose=1,callbacks =[earlystopping])
+    history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep ,verbose=1,callbacks =[earlystopping])
     model.save('Models\model_' + str(i) + '.h5', overwrite=True)
     plotloss(history,str(i))
     avep.append( len(history.history['loss']))
@@ -163,7 +163,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     forecast = pd.DataFrame()
 
     #Prediction using Validation Generator
-    predict1=model.predict(val_generator)
+    predict1=model.predict(valgenerator)
 
 
     # Predict future, beyond test dates
@@ -196,11 +196,12 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
     predictN4 = sc.inverse_transform(predict1)#Inverse Transform to get the actual cases
     predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Prediction N4'}) #Round results
+    # print(predictN4)
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
 
 
     total_forecast = pd.concat([forecast , predictN4] , axis=1 )#, igonre_index=True)
-    print(total_forecast)
+    # print(total_forecast)
     
     return total_forecast
 
@@ -210,7 +211,7 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
                 train_set, inv_val, inv_test, dates ,lr):
     experimentmodel = model_create(nodes, seq_size ,n_features,0.001)
 
-    experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
     plotprediction(forecast ,0,str(i) , pname , 'For Loop Prediction')
@@ -242,11 +243,30 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
     MAPE_4_7days.append(mape_7days)
         
         
-        
+    #Normal Prediction Metrics
+
+    mape_next_day_n = mean_absolute_percentage_error(forecast['Actual'][:1], forecast['Prediction N4'][:1])
+    MAPE_Next_day.append(mape_next_day_n)
+
+    mape_3days_n = mean_absolute_percentage_error(forecast['Actual'][:3], forecast['Prediction N4'][:3])
+    MAPE_3days.append(mape_3days_n)
+
+    mape_7days_n = mean_absolute_percentage_error(forecast['Actual'][:7], forecast['Prediction N4'][:7])
+    MAPE_7days.append(mape_7days_n)
+
+    mape_4_n = mean_absolute_percentage_error(forecast['Actual'], forecast['Prediction N4'])
+    MAPE.append(mape_4_n)
         
     metrics = pd.DataFrame(
-        {'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
-         'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node})
+        {'MAE_4': MAE_4,
+
+         'MAPE_4 1 Day': MAPE_4_Next_day,
+         'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4,
+
+         'MAPE 1 Day': MAPE_Next_day,
+         'MAPE 3 Days': MAPE_3days, 'MAPE 7 days': MAPE_7days, 'MAPE': MAPE,
+
+         'MSE_4': MSE_4, 'RMSE_4': RMSE_4, 'Nodes': node})
 
     metrics =metrics.append( metrics.groupby(['Nodes']).mean())
     #metrics=metrics.groupby(['Nodes']).mean()
@@ -265,11 +285,17 @@ def find_best_model(mape):
 
 def final_results(dataframe):
     
-    plotprediction(dataframe[:7] , "iction_7_day_prediction")
-    plotprediction(dataframe[:14] , "iction_14_day_prediction")
-    plotprediction(dataframe[:30] , "iction_30_day_prediction")
-    plotprediction(dataframe[:60] , "iction_60_day_prediction")
-    plotprediction(dataframe[:90] , "iction_90_day_prediction")
+    plotprediction(dataframe[:7] , 0, "iction_7_day_prediction" , pname , 'For Loop Prediction')
+    plotprediction(dataframe[:14] ,0, "iction_14_day_prediction" ,  pname , 'For Loop Prediction')
+    plotprediction(dataframe[:30] ,0, "iction_30_day_prediction" ,  pname , 'For Loop Prediction')
+    plotprediction(dataframe[:60] ,0, "iction_60_day_prediction", pname , 'For Loop Prediction')
+    plotprediction(dataframe[:90] ,0, "iction_90_day_prediction" , pname , 'For Loop Prediction')
+
+    plotprediction(dataframe[:7] , 2, "iction_7_day_prediction" , pname , 'Normal Prediction')
+    plotprediction(dataframe[:14] ,2, "iction_14_day_prediction" ,  pname , 'Normal Prediction')
+    plotprediction(dataframe[:30] ,2, "iction_30_day_prediction" ,  pname , 'Normal Prediction')
+    plotprediction(dataframe[:60] ,2, "iction_60_day_prediction", pname , 'Normal Prediction')
+    plotprediction(dataframe[:90] ,2, "iction_90_day_prediction" , pname , 'Normal Prediction')
 
     Days_7= []
     Days_14= []
@@ -333,8 +359,30 @@ def final_results(dataframe):
 
 
     ###############################################################################
+    ###############################################################################
+
+    mape_n = mean_absolute_percentage_error(dataframe['Actual'], dataframe['Prediction N4'])
+    mape_n = float("{:.3f}".format(mape_n))
+    Days_90.append(mape_n)
+
+    mape_7days_n = mean_absolute_percentage_error(dataframe['Actual'][:7], dataframe['Prediction N4'][:7])
+    mape_7days_n = float("{:.3f}".format(mape_7days_n))
+    Days_7.append(mape_7days_n)
+
+    mape_14days_n = mean_absolute_percentage_error(dataframe['Actual'][:14], dataframe['Prediction N4'][:14])
+    mape_14days_n = float("{:.3f}".format(mape_14days_n))
+    Days_14.append(mape_14days_n)
+
+    mape_30days_n = mean_absolute_percentage_error(dataframe['Actual'][:30], dataframe['Prediction N4'][:30])
+    mape_30days_n = float("{:.3f}".format(mape_30days_n))
+    Days_30.append(mape_30days_n)
+
+    mape_60days_n = mean_absolute_percentage_error(dataframe['Actual'][:60], dataframe['Prediction N4'][:60])
+    mape_60days_n = float("{:.3f}".format(mape_60days_n))
+    Days_60.append(mape_60days_n)
 
 
+    ###############################################################################
     ###############################################################################
 
     mse = mean_squared_error(dataframe['Actual'], dataframe['Prediction'])
@@ -389,12 +437,34 @@ def final_results(dataframe):
     rmse_60days= float("{:.3f}".format(rmse_60days))
     Days_60.append(rmse_60days)
 
+    Comp1 = []
+    Comp2 = []
+
+    mape_9_Days = mean_absolute_percentage_error(forecastf['Actual'][:9], forecastf['Prediction'][:9])
+    mape_9_Days = float("{:.3f}".format(mape_9_Days))
+    Comp1.append(mape_9_Days)
+
+    mape_9_Days = mean_absolute_percentage_error(forecastf['Actual'][:9], forecastf['Prediction N4'][:9])
+    mape_9_Days = float("{:.3f}".format(mape_9_Days))
+    Comp1.append(mape_9_Days)
+
+    mape_40_Days = mean_absolute_percentage_error(forecastf['Actual'][:40], forecastf['Prediction'][:40])
+    mape_40_Days = float("{:.3f}".format(mape_40_Days))
+    Comp2.append(mape_40_Days)
+
+    mape_40_Days = mean_absolute_percentage_error(forecastf['Actual'][:40], forecastf['Prediction N4'][:40])
+    mape_40_Days = float("{:.3f}".format(mape_40_Days))
+    Comp2.append(mape_40_Days)
+
+    Comparison = pd.DataFrame({" 9 Days": Comp1, " 40 Days": Comp2})
+    Comparison.to_csv("Results\Comparison_for_" + str(feature_list) + ".csv", float_format="%.3f", index=True,
+                      header=True)
 
     ###############################################################################
 
 
 
-    Names = ['MAE' , 'MAPE' , 'MSE'  , 'RMSE']
+    Names = ['MAE' , 'MAPE' ,'MAPE NORMAL', 'MSE'  , 'RMSE']
     finalresults=pd.DataFrame({" 7 Days" :Days_7, " 14 Days" :Days_14, " 30 Days" :Days_30," 60 Days" :Days_60," 90 Days":Days_90  , 'NAMES':Names })
     finalresults=finalresults.set_index(['NAMES'])
     return finalresults
@@ -462,11 +532,11 @@ a=str(feature_list)
 n_features = len(feature_list)
 # different_nodes = 30
 seq_size = 3
-epochs = 3
-times = 1
+epochs = 75
+times = 10
 nodes=44
 pname= 'Cases'
-lr=0.001
+lr=0.0001
 
 
 avep=[]
@@ -477,10 +547,17 @@ MAE_4 = []
 MAPE_4 = []
 MSE_4 = []
 RMSE_4 = []
+
+MAPE_4_Next_day = []
 MAPE_4_3days = []
 MAPE_4_7days = []
-MAPE_4_Next_day = []
+MAPE_4 = []
 
+
+MAPE_Next_day = []  #1 Day
+MAPE_3days = []    ## Days
+MAPE_7days = []    #7 Days
+MAPE = []           #14 Days
 
 ##### Data  Creation #####
 
@@ -510,13 +587,13 @@ inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_
 
 metrics =single_test(times)
 
-# bestmodel = find_best_model(MAPE_4)
+bestmodel = find_best_model(MAPE_4)
 
 
 ##################################### Singel Layer Prediction #####################################
 
 
-# bestmodel.fit(val_generator, epochs=60, verbose=1)
+bestmodel.fit(val_generator, epochs=25, verbose=1)
 
 ##################################### Stacked Model Prediction ######################################
 
@@ -527,13 +604,20 @@ metrics =single_test(times)
 
 # bestmodel.save(r"Models\Final_model_for_"+ a + ".h5")
 #
-# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 #
-# finalresults=final_results(forecastf)
+
+finalresults=final_results(forecastf)
+
+finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 #
-# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
-#
-#
+
+
+print(forecastf)
+
+
+
+
 #
 
 
