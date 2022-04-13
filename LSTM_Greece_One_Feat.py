@@ -15,12 +15,6 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
 
 from itertools  import chain ,product
-########################## Telegram Bot   ###################################
-
-import requests
-
-
-
 
 ########################## Functions   ###################################
 
@@ -210,7 +204,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lr):
-    experimentmodel = model_create(nodes, seq_size ,n_features,0.001)
+    experimentmodel = stacked_model_create(nodes, seq_size ,n_features)
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
@@ -594,12 +588,12 @@ bestmodel = find_best_model(MAPE_4)
 ##################################### Singel Layer Prediction #####################################
 
 
-bestmodel.fit(val_generator, epochs=10, verbose=1)
+# bestmodel.fit(val_generator, epochs=2, verbose=1)
 
 ##################################### Stacked Model Prediction ######################################
 
-# callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
-# bestmodel.fit(val_generator, epochs=60,batch_size=1 ,  callbacks=[callback], verbose=1)
+callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
+bestmodel.fit(val_generator, epochs=60 ,  callbacks=[callback], verbose=1)
 
 #####################################################################################################
 
