@@ -188,57 +188,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     
     return forecast
 
-def predict_training(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
-
-    # Forecast   Predict using a for loop
-    index = inverseval.index
-    predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
-    predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
-    current_batch = trainset[-seq_size:]
-    forecast = pd.DataFrame()
-
-    # Predict future, beyond test dates
-    future = len(validation_set) - seq_size  # Days
-    for i in range(future):
-                
-        current_batch = predictiondata[i:seq_size + i] #Create input for LSTM (Based on sequence size )
-
-        current_batch = current_batch.to_numpy()  #Input to array 
-
-        current_batch = current_batch.reshape(1, seq_size, n_features)  # Reshape
-
-        ### Prediction ##
-       
-        current_pred = model.predict(current_batch) # Make a prediction 
-
-        
-        current_pred = float(current_pred[0]) #Convert Prediction to integer 
-        predictiondata.loc[len(predictiondata.index)] = [current_pred]   
-        
-        trainpred = predictiondata[-(seq_size)-1:].reset_index(drop='true')
-
-        
-        trainpred_generator = TimeseriesGenerator(trainpred, trainpred.iloc[:, 0], length=seq_size, batch_size=1)
-
-        model.fit(trainpred_generator, epochs=3, verbose=0) 
-        
-        
-        
-        
-        
-
-    forecast = predictiondata[-(future):] #Save results in a dataframe 
-    forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual cases 
-    forecast = pd.DataFrame(forecast.round()) #Round results 
-    forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
-
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
-
-    forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
-    
-    
-    return forecast
 
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lr):
@@ -497,7 +447,7 @@ seq_size = 3
 epochs = 60
 times = 10
 nodes=44
-lr=0.0001
+lr=0.001
 
 
 avep=[]
