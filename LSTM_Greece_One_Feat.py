@@ -3,12 +3,12 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-from tensorflow import keras 
-from keras.preprocessing.sequence import TimeseriesGenerator
+import tensorflow
+from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import Dense
-from keras import callbacks
+from tensorflow.keras import callbacks
 
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error
@@ -81,11 +81,12 @@ def plotloss(mod, name=""):
     plt.savefig("Plots\loss_model" + name +".jpeg"  )
     plt.show()
 
-def plotprediction(ypredict , name=""):
+def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.figure(figsize=[12,10] , dpi=140 )
-    plt.plot(ypredict.index, ypredict.iloc[:, 0], 'y', label='Prediction ')
+    plt.plot(ypredict.index, ypredict.iloc[:, col], 'y', label='Prediction ')
     plt.plot(ypredict.index, ypredict.iloc[:, 1], 'r', label='Actual ')
-    plt.title('Predicted vs  Actual Cases in Greece for ' +str(len(ypredict)) + ' days')
+    plt.title('Predicted vs  Actual '  + pname + '  in Greece for ' +str(len(ypredict)) + ' days')
+    plt.suptitle(predtype)
     plt.xlabel('Date')
     plt.ylabel('Cases')
     plt.legend()
@@ -112,7 +113,7 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
     return set1, set2, set3
 
 def model_create(nodes, seq_size , features,lr):
-    opt = keras.optimizers.Adam(learning_rate=lr)
+    opt = tensorflow.keras.optimizers.Adam(learning_rate=lr)
     model = Sequential()
     model.add(LSTM(nodes, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
@@ -152,12 +153,18 @@ def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
 def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
 
+
+
     # Forecast   Predict using a for loop
     index = inverseval.index
     predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
     current_batch = trainset[-seq_size:]
     forecast = pd.DataFrame()
+
+    #Prediction using Validation Generator
+    predict1=model.predict(val_generator)
+
 
     # Predict future, beyond test dates
     future = len(validation_set) - seq_size  # Days
@@ -184,20 +191,31 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
+
+
+
+    predictN4 = sc.inverse_transform(predict1)#Inverse Transform to get the actual cases
+    predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Prediction N4'}) #Round results
+    predictN4 = predictN4.set_index(index[seq_size:], 'Date')
+
+
+    total_forecast = pd.concat([forecast , predictN4] , axis=1 )#, igonre_index=True)
+    print(total_forecast)
     
-    
-    return forecast
+    return total_forecast
 
 
 
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lr):
-    experimentmodel = stacked_model_create(nodes, seq_size ,n_features)
+    experimentmodel = model_create(nodes, seq_size ,n_features,0.001)
 
-    experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    experimentmodel = model_train(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-    plotprediction(forecast ,str(i))
+    plotprediction(forecast ,0,str(i) , pname , 'For Loop Prediction')
+    plotprediction(forecast ,2, str(i), pname, 'Normal Prediction')
+
 
     mae_4 = mean_absolute_error(forecast['Actual'], forecast['Prediction'])
     MAE_4.append(mae_4)
@@ -241,7 +259,7 @@ def find_best_model(mape):
     mape = pd.DataFrame(mape)
     min = mape.idxmin()
     j = min[0]
-    best_model = keras.models.load_model(r"Models\model_" + str(j) + ".h5")
+    best_model = tensorflow.keras.models.load_model(r"Models\model_" + str(j) + ".h5")
     print("Best Model is :model_" + str(j) + ".h5")
     return best_model
 
@@ -444,9 +462,10 @@ a=str(feature_list)
 n_features = len(feature_list)
 # different_nodes = 30
 seq_size = 3
-epochs = 60
-times = 10
+epochs = 3
+times = 1
 nodes=44
+pname= 'Cases'
 lr=0.001
 
 
@@ -491,31 +510,31 @@ inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_
 
 metrics =single_test(times)
 
-bestmodel = find_best_model(MAPE_4)
+# bestmodel = find_best_model(MAPE_4)
 
 
 ##################################### Singel Layer Prediction #####################################
 
 
-# bestmodel.fit(val_generator, epochs=60, verbose=1) 
+# bestmodel.fit(val_generator, epochs=60, verbose=1)
 
 ##################################### Stacked Model Prediction ######################################
 
-callback = keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
-bestmodel.fit(val_generator, epochs=60,batch_size=1 ,  callbacks=[callback], verbose=1) 
+# callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
+# bestmodel.fit(val_generator, epochs=60,batch_size=1 ,  callbacks=[callback], verbose=1)
 
 #####################################################################################################
 
-bestmodel.save(r"Models\Final_model_for_"+ a + ".h5")
-
-forecastf = predict_training(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
-
-finalresults=final_results(forecastf)
-
-finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
-
-
-
+# bestmodel.save(r"Models\Final_model_for_"+ a + ".h5")
+#
+# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+#
+# finalresults=final_results(forecastf)
+#
+# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
+#
+#
+#
 
 
 
