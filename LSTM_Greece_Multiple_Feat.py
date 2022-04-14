@@ -20,23 +20,6 @@ import itertools
 from itertools  import product
 from itertools  import combinations 
 
-########################## Telegram Bot   ###################################
-
-import requests
-
-def telegram_bot_sendtext(bot_message):
-    
-    
-    bot_token = '5155856577:AAEhWS4vSX_LEitFXaW17Qayo2kNe_NzmC8'
-    bot_chatID = '2013533042'
-    send_text = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + bot_chatID + '&parse_mode=Markdown&text=' + bot_message
-    
-    response = requests.get(send_text)
-
-
-
-text = '🖥 PC Start 🖥'
-telegram_bot_sendtext(text)
 
 ########################## Functions   ###################################
 
@@ -113,15 +96,16 @@ def plotloss(mod, name=""):
     plt.savefig("Plots/loss_model" + name +".jpeg"  )
     plt.show()
 
-def plotprediction(ypredict , name=""):
+def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.figure(figsize=[12,10] , dpi=140 )
-    plt.plot(ypredict.index, ypredict.iloc[:, 0], 'y', label='Prediction ')
+    plt.plot(ypredict.index, ypredict.iloc[:, col], 'y', label='Prediction ')
     plt.plot(ypredict.index, ypredict.iloc[:, 1], 'r', label='Actual ')
-    plt.title('Predicted vs  Actual deaths in Greece for ' +str(len(ypredict)) + ' days')
+    plt.title('Predicted vs  Actual '  + pname + '  in Greece for ' +str(len(ypredict)) + ' days')
+    plt.suptitle(predtype)
     plt.xlabel('Date')
-    plt.ylabel('deaths')
+    plt.ylabel('Cases')
     plt.legend()
-    plt.savefig("Plots/pred" + name +".jpeg"  )
+    plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
     plt.show()
 
 def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogdata, dates):
@@ -150,6 +134,7 @@ def model_create(nodes, seq_size , features,lrate):
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
     return model
+
 def stacked_model_create(seq_size , features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
@@ -184,13 +169,12 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
     # Forecast   Predict using a for loop
     index = inverseval.index
-    
     predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
     
-    
-    # A=[	1492, 1482, 1323, 1372, 1222, 662] ## New deaths
-    A =  [20 ,17 , 22 ,21, 26,23] # New fdeaths
+
+    # A=[	1492, 1482, 1323, 1372, 1222, 662] ## New Cases
+    A =  [20 ,17 , 22 ,21, 26,23] # New deaths
     newdeathsprediction = pd.DataFrame(A)
     
     current_batch = trainset[-seq_size:]
@@ -209,8 +193,8 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         current_pred = model.predict(current_batch) # Make a prediction 
         total_deaths = float(current_pred[0]) #Convert Prediction to integer 
         total_deaths= total_deaths /0.000149254 #De-scale
-        
-        
+
+
         
         # ##### Create New Day Values #####
         
@@ -245,11 +229,11 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         
         
         #Add New Day Values 
-        Featnames = ['total_deaths','new_cases','new_cases_smoothed','total_deaths_per_million','new_deaths_per_million','new_deaths_smoothed_per_million']
+        Featnames = ['total_deaths','new_deaths','new_deaths_smoothed','total_deaths_per_million','new_deaths_per_million','new_deaths_smoothed_per_million']
         featval = [total_deaths,new_deaths,new_deaths_smoothed,total_deaths_per_million,new_deaths_per_million,new_deaths_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
 
-        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ]# , dictionary[feature_list[2]] ] #,dictionary[feature_list[3]]  , dictionary[feature_list[4]] ] #    , dictionary[feature_list[3]]  ] 
+        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]]  , dictionary[feature_list[2]] ] #,dictionary[feature_list[3]]  , dictionary[feature_list[4]] ] #    , dictionary[feature_list[3]]  ]
 
 
         
@@ -267,11 +251,29 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
+
+########################################################################################################################
+    # Prediction using Validation Generator
+    predict1 = model.predict(valgenerator)
+
+
+    predict1=pd.DataFrame(predict1)
+    for i in range (len(feature_list)):
+        predict1[i] = predict1[0]
+    # print(predict1)
+
+
+    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual Cases
+    predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Prediction N4'}) #Round results
+    predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Prediction N4'})  # Round results
+    predictN4 = predictN4.set_index(index[seq_size:], 'Date')
+    # print(predictN4)
+
+    total_forecast = pd.concat([forecast, predictN4['Prediction N4']], axis=1)  # , igonre_index=True)
+    print(total_forecast)
+
     
-    
-    
-    
-    return forecast
+    return total_forecast
 
 
 def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
@@ -299,7 +301,8 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-    plotprediction(forecast ,str(i))
+    plotprediction(forecast, 0, str(i), pname, 'For Loop Prediction')
+    plotprediction(forecast, 2, str(i), pname, 'Normal Prediction')
     
     
     ##################### Metrics ######################
@@ -332,7 +335,20 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
     Features.append(feature_list)
 
     LR.append(lrate)
-        
+
+    # Normal Prediction Metrics
+
+    mape_next_day_n = mean_absolute_percentage_error(forecast['Actual'][:1], forecast['Prediction N4'][:1])
+    MAPE_Next_day.append(mape_next_day_n)
+
+    mape_3days_n = mean_absolute_percentage_error(forecast['Actual'][:3], forecast['Prediction N4'][:3])
+    MAPE_3days.append(mape_3days_n)
+
+    mape_7days_n = mean_absolute_percentage_error(forecast['Actual'][:7], forecast['Prediction N4'][:7])
+    MAPE_7days.append(mape_7days_n)
+
+    mape_4_n = mean_absolute_percentage_error(forecast['Actual'], forecast['Prediction N4'])
+    MAPE.append(mape_4_n)
 
     return 
 
@@ -345,12 +361,17 @@ def find_best_model(mape):
     return best_model
 
 def final_results(dataframe):
-    
-    plotprediction(dataframe[:7] , "iction_7_day_prediction")
-    plotprediction(dataframe[:14] , "iction_14_day_prediction")
-    plotprediction(dataframe[:30] , "iction_30_day_prediction")
-    plotprediction(dataframe[:60] , "iction_60_day_prediction")
-    plotprediction(dataframe[:90] , "iction_90_day_prediction")
+    plotprediction(dataframe[:7], 0, "iction_7_day_prediction", pname, 'For Loop Prediction')
+    plotprediction(dataframe[:14], 0, "iction_14_day_prediction", pname, 'For Loop Prediction')
+    plotprediction(dataframe[:30], 0, "iction_30_day_prediction", pname, 'For Loop Prediction')
+    plotprediction(dataframe[:60], 0, "iction_60_day_prediction", pname, 'For Loop Prediction')
+    plotprediction(dataframe[:90], 0, "iction_90_day_prediction", pname, 'For Loop Prediction')
+
+    plotprediction(dataframe[:7], 2, "iction_7_day_prediction", pname, 'Normal Prediction')
+    plotprediction(dataframe[:14], 2, "iction_14_day_prediction", pname, 'Normal Prediction')
+    plotprediction(dataframe[:30], 2, "iction_30_day_prediction", pname, 'Normal Prediction')
+    plotprediction(dataframe[:60], 2, "iction_60_day_prediction", pname, 'Normal Prediction')
+    plotprediction(dataframe[:90], 2, "iction_90_day_prediction", pname, 'Normal Prediction')
 
     Days_7= []
     Days_14= []
@@ -412,7 +433,31 @@ def final_results(dataframe):
     mape_60days= float("{:.3f}".format(mape_60days))
     Days_60.append(mape_60days)
 
+    ###############################################################################
+    ###############################################################################
 
+    mape_n = mean_absolute_percentage_error(dataframe['Actual'], dataframe['Prediction N4'])
+    mape_n = float("{:.3f}".format(mape_n))
+    Days_90.append(mape_n)
+
+    mape_7days_n = mean_absolute_percentage_error(dataframe['Actual'][:7], dataframe['Prediction N4'][:7])
+    mape_7days_n = float("{:.3f}".format(mape_7days_n))
+    Days_7.append(mape_7days_n)
+
+    mape_14days_n = mean_absolute_percentage_error(dataframe['Actual'][:14], dataframe['Prediction N4'][:14])
+    mape_14days_n = float("{:.3f}".format(mape_14days_n))
+    Days_14.append(mape_14days_n)
+
+    mape_30days_n = mean_absolute_percentage_error(dataframe['Actual'][:30], dataframe['Prediction N4'][:30])
+    mape_30days_n = float("{:.3f}".format(mape_30days_n))
+    Days_30.append(mape_30days_n)
+
+    mape_60days_n = mean_absolute_percentage_error(dataframe['Actual'][:60], dataframe['Prediction N4'][:60])
+    mape_60days_n = float("{:.3f}".format(mape_60days_n))
+    Days_60.append(mape_60days_n)
+
+
+    ###############################################################################
     ###############################################################################
 
 
@@ -469,13 +514,36 @@ def final_results(dataframe):
     rmse_60days = mean_squared_error(dataframe['Actual'][:60], dataframe['Prediction'][:60] , squared=False)
     rmse_60days= float("{:.3f}".format(rmse_60days))
     Days_60.append(rmse_60days)
+    ####################################################################################################################
+    Comp1 = []
+    Comp2 = []
+
+    mape_9_Days = mean_absolute_percentage_error(forecastf['Actual'][:9], forecastf['Prediction'][:9])
+    mape_9_Days = float("{:.3f}".format(mape_9_Days))
+    Comp1.append(mape_9_Days)
+
+    mape_9_Days = mean_absolute_percentage_error(forecastf['Actual'][:9], forecastf['Prediction N4'][:9])
+    mape_9_Days = float("{:.3f}".format(mape_9_Days))
+    Comp1.append(mape_9_Days)
+
+    mape_40_Days = mean_absolute_percentage_error(forecastf['Actual'][:40], forecastf['Prediction'][:40])
+    mape_40_Days = float("{:.3f}".format(mape_40_Days))
+    Comp2.append(mape_40_Days)
+
+    mape_40_Days = mean_absolute_percentage_error(forecastf['Actual'][:40], forecastf['Prediction N4'][:40])
+    mape_40_Days = float("{:.3f}".format(mape_40_Days))
+    Comp2.append(mape_40_Days)
+
+    Comparison = pd.DataFrame({" 9 Days": Comp1, " 40 Days": Comp2})
+    Comparison.to_csv("Results\Comparison_for_" + str(feature_list) + ".csv", float_format="%.3f", index=True,
+                      header=True)
 
 
     ###############################################################################
 
 
 
-    Names = ['MAE' , 'MAPE' , 'MSE'  , 'RMSE']
+    Names = ['MAE' , 'MAPE', 'MAPE NORMAL' , 'MSE'  , 'RMSE']
     finalresults=pd.DataFrame({" 7 Days" :Days_7, " 14 Days" :Days_14, " 30 Days" :Days_30," 60 Days" :Days_60," 90 Days":Days_90  , 'NAMES':Names })
     finalresults=finalresults.set_index(['NAMES'])
     return finalresults
@@ -488,11 +556,11 @@ def final_results(dataframe):
 
 # Sigle Layer Parameters 
 seq_size = 3
-times =10
-combos =2
-epochs=60
+times =1
+combos =3
+epochs=30
 nodes = 0
-
+pname= 'Deaths'
 
 
 
@@ -507,6 +575,10 @@ MAPE_4_3days = []
 MAPE_4_7days = []
 MAPE_4_Next_day = []
 Features = []
+MAPE_Next_day = []  #1 Day
+MAPE_3days = []    ## Days
+MAPE_7days = []    #7 Days
+MAPE = []           #14 Days
 
 loc="owid-covid-data.csv"
 
@@ -519,8 +591,9 @@ flist=flist*times
 flist=[ x for x in flist if "total_deaths"  in x ] # Must always contain total deaths/ deaths 
 # flist=[ x for x in flist if "new_deaths_smoothed"   in x ] ## Select pairs that i want to male a longterm prediction
 flist=[ x for x in flist if "total_deaths_per_million"  in x ]
+flist=[ x for x in flist if "new_deaths"  in x ]
 
-# flist=flist[:2]   ## Contorlo length
+# flist=flist[:2]   ## Contorl length
 
     
 for i in range(len(flist)):
@@ -564,17 +637,18 @@ for i in range(len(flist)):
 
 
 
-# 
-
 # ### Format Rsults ###
 
 metrics = pd.DataFrame(
     {'Feat':Features  ,'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
-      'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'Epochs' : Epochs})
+      'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4,
+      'MAPE 1 Day': MAPE_Next_day,
+         'MAPE 3 Days': MAPE_3days, 'MAPE 7 days': MAPE_7days, 'MAPE': MAPE,
+     'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'Epochs' : Epochs})
 
 metrics=metrics.sort_values(by=['Feat']).reset_index(drop=True)
-metrics[['Feature 1','Feature 2'  ]] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
-metrics1 = metrics.groupby(['Feature 1','Feature 2' ]).mean()
+metrics[['Feature 1','Feature 2', 'Feature 3' ]] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
+metrics1 = metrics.groupby(['Feature 1','Feature 2','Feature 3' ]).mean()
 
  
 
@@ -582,23 +656,20 @@ metrics1 = metrics.groupby(['Feature 1','Feature 2' ]).mean()
 metrics.to_csv("Results/Valdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
 metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
 
-
-
-
-# text = '🖥 PC DONE 🖥'
-# telegram_bot_sendtext(text)
-
-
+#####################################################################################################
 bestmodel = find_best_model(MAPE_4)
 print(bestmodel)
+# #
+
+callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
+bestmodel.fit(val_generator, epochs=60 ,  callbacks=[callback], verbose=1)
+
+
+# bestmodel.fit_generator(val_generator, epochs=10, verbose=1)
+# # bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
 #
-
-bestmodel.fit_generator(val_generator, epochs=10, verbose=1) 
-# bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
-
 forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
 
 finalresults=final_results(forecastf)
 
-finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
-print("Github account Check")
+# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
