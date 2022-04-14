@@ -127,9 +127,9 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
     set3=set3.set_axis(feature_list, axis=1, inplace=False)
     return set1, set2, set3
 
-def model_create(nodes, seq_size , features,lrate):
+def model_create(nodes, seq_size , features):
     model = Sequential()
-    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -233,7 +233,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         featval = [total_deaths,new_deaths,new_deaths_smoothed,total_deaths_per_million,new_deaths_per_million,new_deaths_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
 
-        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]]  , dictionary[feature_list[2]] ] #,dictionary[feature_list[3]]  , dictionary[feature_list[4]] ] #    , dictionary[feature_list[3]]  ]
+        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ] #  , dictionary[feature_list[2]] ] #,dictionary[feature_list[3]]  , dictionary[feature_list[4]] ] #    , dictionary[feature_list[3]]  ]
 
 
         
@@ -270,11 +270,10 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     # print(predictN4)
 
     total_forecast = pd.concat([forecast, predictN4['Prediction N4']], axis=1)  # , igonre_index=True)
-    print(total_forecast)
+    # print(total_forecast)
 
     
     return total_forecast
-
 
 def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
     hp1 = list(product(parameter1 , parameter2 ))
@@ -556,9 +555,9 @@ def final_results(dataframe):
 
 # Sigle Layer Parameters 
 seq_size = 3
-times =1
-combos =3
-epochs=30
+times =10
+combos =2
+epochs=60
 nodes = 0
 pname= 'Deaths'
 
@@ -591,7 +590,7 @@ flist=flist*times
 flist=[ x for x in flist if "total_deaths"  in x ] # Must always contain total deaths/ deaths 
 # flist=[ x for x in flist if "new_deaths_smoothed"   in x ] ## Select pairs that i want to male a longterm prediction
 flist=[ x for x in flist if "total_deaths_per_million"  in x ]
-flist=[ x for x in flist if "new_deaths"  in x ]
+# flist=[ x for x in flist if "new_deaths"  in x ]
 
 # flist=flist[:2]   ## Contorl length
 
@@ -647,8 +646,8 @@ metrics = pd.DataFrame(
      'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'Epochs' : Epochs})
 
 metrics=metrics.sort_values(by=['Feat']).reset_index(drop=True)
-metrics[['Feature 1','Feature 2', 'Feature 3' ]] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
-metrics1 = metrics.groupby(['Feature 1','Feature 2','Feature 3' ]).mean()
+metrics[['Feature 1','Feature 2' ]] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
+metrics1 = metrics.groupby(['Feature 1','Feature 2' ]).mean()
 
  
 
@@ -672,4 +671,4 @@ forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, valid
 
 finalresults=final_results(forecastf)
 
-# finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
+finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
