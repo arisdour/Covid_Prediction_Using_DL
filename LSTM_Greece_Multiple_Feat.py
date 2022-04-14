@@ -127,9 +127,9 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
     set3=set3.set_axis(feature_list, axis=1, inplace=False)
     return set1, set2, set3
 
-def model_create(nodes, seq_size , features):
+def model_create(nodes: object, seq_size: object, features: object) -> object:
     model = Sequential()
-    model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -138,8 +138,8 @@ def model_create(nodes, seq_size , features):
 def stacked_model_create(seq_size , features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(LSTM(18, return_sequences=True))
-    model.add(LSTM(59, return_sequences=False))
+    model.add(LSTM(20, return_sequences=True))
+    model.add(LSTM(20, return_sequences=False))
 
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -173,9 +173,9 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
     
 
-    # A=[	1492, 1482, 1323, 1372, 1222, 662] ## New Cases
-    A =  [20 ,17 , 22 ,21, 26,23] # New deaths
-    newdeathsprediction = pd.DataFrame(A)
+    A=[	1492, 1482, 1323, 1372, 1222, 662] ## New Cases
+    # A =  [20 ,17 , 22 ,21, 26,23] # New Deaths
+    newcasesprediction = pd.DataFrame(A)
     
     current_batch = trainset[-seq_size:]
     forecast = pd.DataFrame()
@@ -191,46 +191,46 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         ### Prediction ##
         
         current_pred = model.predict(current_batch) # Make a prediction 
-        total_deaths = float(current_pred[0]) #Convert Prediction to integer 
-        total_deaths= total_deaths /0.000149254 #De-scale
+        total_cases = float(current_pred[0]) #Convert Prediction to integer 
+        total_cases= total_cases /5.80966e-06 #De-scale
 
 
         
         # ##### Create New Day Values #####
         
-        #### Total deaths ####
+        #### Total cases ####
         
-        total_deaths_per_million = total_deaths * 0.096 #Calculate Total Caces per million 
+        total_cases_per_million = total_cases * 0.096 #Calculate Total Caces per million 
         
-        #### New deaths ####
+        #### New cases ####
         
-        new_deaths= total_deaths-(predictiondata.iloc[len(predictiondata.index)-1,0])/0.000149254 # Calculate  new deathsDe-scaled
+        new_cases= total_cases-(predictiondata.iloc[len(predictiondata.index)-1,0])/5.80966e-06 # Calculate  new casesDe-scaled
         
-        new_deaths_per_million = new_deaths*0.096  #Calculate New per million 
+        new_cases_per_million = new_cases*0.096  #Calculate New per million 
         
         
-        newdeathsprediction.loc[len(newdeathsprediction.index)] = [new_deaths] #append new deaths 
-        smoothednew = newdeathsprediction.rolling(window=7).mean()
-        new_deaths_smoothed = float( smoothednew.iloc[6+i])
+        newcasesprediction.loc[len(newcasesprediction.index)] = [new_cases] #append new cases 
+        smoothednew = newcasesprediction.rolling(window=7).mean()
+        new_cases_smoothed = float( smoothednew.iloc[6+i])
         
-        new_deaths_smoothed_pre_million= new_deaths_smoothed * 0.096  #Calculate Smoothed Permillion New deaths 
+        new_cases_smoothed_pre_million= new_cases_smoothed * 0.096  #Calculate Smoothed Permillion New cases 
         
         
         #Scale Back 
         
-        total_deaths = total_deaths * 0.000149254
-        new_deaths = new_deaths *  0.00826446
-        new_deaths_smoothed = new_deaths_smoothed *0.00992908
-        total_deaths_per_million = total_deaths_per_million *0.00155568
-        new_deaths_per_million = new_deaths_per_million *0.0861401
-        new_deaths_smoothed_pre_million = new_deaths_smoothed_pre_million *0.103428
+        total_cases = total_cases * 5.80966e-06
+        new_cases = new_cases *  0.000301568
+        new_cases_smoothed = new_cases_smoothed * 0.000374211
+        total_cases_per_million = total_cases_per_million * 5.82583e-05
+        new_cases_per_million = new_cases_per_million *0.00314326
+        new_cases_smoothed_pre_million = new_cases_smoothed_pre_million * 0.00389804
         
 
         
         
         #Add New Day Values 
-        Featnames = ['total_deaths','new_deaths','new_deaths_smoothed','total_deaths_per_million','new_deaths_per_million','new_deaths_smoothed_per_million']
-        featval = [total_deaths,new_deaths,new_deaths_smoothed,total_deaths_per_million,new_deaths_per_million,new_deaths_smoothed_pre_million]
+        Featnames = ['total_cases','new_cases','new_cases_smoothed','total_cases_per_million','new_cases_per_million','new_cases_smoothed_per_million']
+        featval = [total_cases,new_cases,new_cases_smoothed,total_cases_per_million,new_cases_per_million,new_cases_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
 
         usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ] #  , dictionary[feature_list[2]] ] #,dictionary[feature_list[3]]  , dictionary[feature_list[4]] ] #    , dictionary[feature_list[3]]  ]
@@ -244,11 +244,11 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     
 
     forecast = predictiondata[-(future):] #Save results in a dataframe 
-    forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual deaths 
+    forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual cases 
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
 
@@ -295,7 +295,7 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lrate):
     
-    experimentmodel = stacked_model_create( seq_size ,n_features)
+    experimentmodel = model_create( nodes, seq_size ,n_features)
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
@@ -559,7 +559,7 @@ times =10
 combos =2
 epochs=60
 nodes = 0
-pname= 'Deaths'
+pname= 'cases'
 
 
 
@@ -583,14 +583,14 @@ loc="owid-covid-data.csv"
 
 Greece_total , titles =readdata(loc)
 
-flist = featcombos('deaths', titles, combos)
+flist = featcombos('cases', titles, combos)
 
 flist=flist*times
 
-flist=[ x for x in flist if "total_deaths"  in x ] # Must always contain total deaths/ deaths 
-# flist=[ x for x in flist if "new_deaths_smoothed"   in x ] ## Select pairs that i want to male a longterm prediction
-flist=[ x for x in flist if "total_deaths_per_million"  in x ]
-# flist=[ x for x in flist if "new_deaths"  in x ]
+flist=[ x for x in flist if "total_cases"  in x ] # Must always contain total cases/ cases 
+# flist=[ x for x in flist if "new_cases_smoothed"   in x ] ## Select pairs that i want to male a longterm prediction
+flist=[ x for x in flist if "new_cases_per_million"  in x ]
+# flist=[ x for x in flist if "new_cases"  in x ]
 
 # flist=flist[:2]   ## Contorl length
 
@@ -601,11 +601,11 @@ for i in range(len(flist)):
     feature_list = list(itertools.chain(feature_list))
     n_features = len(feature_list)
     
-    Greece_total['new_deaths_smoothed']= Greece_total['new_deaths'].rolling(window=7).mean()
-    Greece_total['new_deaths_smoothed']= Greece_total['new_deaths'].rolling(window=7).mean()
+    Greece_total['new_cases_smoothed']= Greece_total['new_cases'].rolling(window=7).mean()
+    Greece_total['new_cases_smoothed']= Greece_total['new_cases'].rolling(window=7).mean()
     
-    Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
-    Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
+    Greece_total['new_cases_smoothed_per_million']= Greece_total['new_cases_smoothed']*0.096
+    Greece_total['new_cases_smoothed_per_million']= Greece_total['new_cases_smoothed']*0.096
 
 
     dates,greece = createdata(Greece_total ,feature_list )
