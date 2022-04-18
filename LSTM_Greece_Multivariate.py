@@ -142,7 +142,7 @@ def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.title('Predicted vs  Actual '  + pname + '  in Greece for ' +str(len(ypredict)) + ' days')
     plt.suptitle(predtype)
     plt.xlabel('Date')
-    plt.ylabel('Cases')
+    plt.ylabel('deaths')
     plt.legend()
     plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
     plt.show()
@@ -180,8 +180,8 @@ def model_create( seq_size , features):
 def stacked_model_create(seq_size , features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(LSTM(20, return_sequences=True))
-    model.add(LSTM(20, return_sequences=False))
+    model.add(LSTM(18, return_sequences=True))
+    model.add(LSTM(59, return_sequences=False))
 
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -235,17 +235,17 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset):
         predictiondata.loc[len(predictiondata.index)] = current_pred
 
     forecast = predictiondata[-(future):]  # Save results in a dataframe
-    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual Cases
+    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual deaths
     forecast = pd.DataFrame(forecast.round())  # Round results
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1,
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1,
                          ignore_index=True)  # Concate the two dfs
 
     forecast = forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
 
-    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual Cases
+    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual deaths
     predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Prediction N4'})  # Round results
     # print(predictN4)
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
@@ -557,14 +557,14 @@ def FeatureSelection(df,K):
 
     
 
-    y=first_n_column['total_cases'] # Set Total Cases as a Target
+    y=first_n_column['total_deaths'] # Set Total deaths as a Target
     dates = df['date']
-    X=first_n_column.drop( columns=[ 'date' , 'total_cases']) # Remove Total Cases 
+    X=first_n_column.drop( columns=[ 'date' , 'total_deaths']) # Remove Total deaths
 
 
-    # y=df['total_cases'] # Set Total Cases as a Target
+    # y=df['total_deaths'] # Set Total deaths as a Target
     # dates = df['date']
-    # X=df.drop( columns=[ 'date' , 'total_cases','tests_units']) # Remove Total Cases 
+    # X=df.drop( columns=[ 'date' , 'total_deaths','tests_units']) # Remove Total deaths
     X_selected =fs.fit_transform(X, y)
 
     # X_selected=pd.concat([X_selected, y] , axis=1)
@@ -608,7 +608,7 @@ Klist= [1]
 
 nodes=0
 
-pname= 'Cases'
+pname= 'deaths'
 
 
 
@@ -678,10 +678,7 @@ average = analytical.groupby("mid").mean(numeric_only=True).reset_index()
 average=pd.concat([average, unique_featnames], axis=1 , ignore_index=False)
 
 
-# metrics=metrics.sort_values(by=[feature_list]).reset_index(drop=True)
-# metrics[feature_list] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
-# metrics1 = test.groupby("mid").mean()
-# 
+
  
 
 # # #Save Results
