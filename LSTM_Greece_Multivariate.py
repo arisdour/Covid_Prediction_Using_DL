@@ -23,25 +23,9 @@ import itertools
 from itertools  import product
 from itertools  import combinations 
 
-########################## Telegram Bot   ###################################
-
-# import requests
-#
-# def telegram_bot_sendtext(bot_message):
-#
-#
-#     bot_token = '5155856577:AAEhWS4vSX_LEitFXaW17Qayo2kNe_NzmC8'
-#     bot_chatID = '2013533042'
-#     send_text = 'https://api.telegram.org/bot' + bot_token + '/sendMessage?chat_id=' + bot_chatID + '&parse_mode=Markdown&text=' + bot_message
-#
-#     response = requests.get(send_text)
-#
-#
-
-# text = '🖥 PC Start 🖥'
-# telegram_bot_sendtext(text)
 
 ########################## Functions   ###################################
+import LSTM_Greece_Multivariate
 
 
 def readdata(location):
@@ -134,7 +118,6 @@ def plotloss(mod, name=""):
     plt.savefig("Plots/loss_model" + name +".jpeg"  )
     plt.show()
 
-
 def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.figure(figsize=[12,10] , dpi=140 )
     plt.plot(ypredict.index, ypredict.iloc[:, col], 'y', label='Prediction ')
@@ -146,7 +129,6 @@ def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.legend()
     plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
     plt.show()
-
 
 def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogdata, dates):
     
@@ -251,7 +233,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset):
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
 
     total_forecast = pd.concat([forecast, predictN4], axis=1)  # , igonre_index=True)
-    print(total_forecast)
+    # print(total_forecast)
 
     return total_forecast
 
@@ -602,7 +584,7 @@ loc="owid-covid-data.csv"
 mid=0
 seq_size = 3
 epochs = 60
-times = 10
+times = 1
 # Klist= [19,17,15,13,11,9,7,5,4,3,2,1]
 Klist= [1]
 
@@ -615,13 +597,8 @@ pname= 'deaths'
 
 
 ##### Data  Creation #####
-Greece_total , titles =readdata(loc)
-Greece_total['new_cases_smoothed']= Greece_total['new_cases'].rolling(window=7).mean()
-Greece_total['new_deaths_smoothed']= Greece_total['new_deaths'].rolling(window=7).mean()
-
-Greece_total['new_cases_smoothed_per_million']= Greece_total['new_cases_smoothed']*0.096
-Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
-
+# Greece_total , titles =readdata(loc)
+Greece_total=pd.read_csv(r"owid_dataset_fixed.csv")
 
 
 for i in range(len(Klist)):
@@ -689,9 +666,6 @@ average.to_csv("Results/Average_Valdation_Results_for__"+ str(len(feature_list))
 
 
 
-# text = '🖥 PC Done 🖥'
-# telegram_bot_sendtext(text)
-
 bestmodel = find_best_model(MAPE_4)
 print(bestmodel)
 
@@ -704,4 +678,3 @@ forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, valid
 finalresults=final_results(forecastf)
 
 finalresults.to_csv("Results\Final_Results_for_" +  str(len(feature_list)) +".csv", float_format="%.3f",index=True, header=True)
-
