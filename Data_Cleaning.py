@@ -19,6 +19,10 @@ Greecevac = data[data.location =='Greece'].reset_index(drop='False')
 Greecevac=Greecevac.fillna( axis=0, method="ffill" )
 # Greecevac=Greecevac.set_index(Greecevac["date"], drop=False)
 Greecevac=Greecevac.drop(['location','iso_code', 'total_boosters','total_boosters_per_hundred'], axis=1)
+Greecevac['new_vaccinations_smoothed']=Greecevac['new_vaccinations'].rolling(window=7).mean()
+Greecevac['new_vaccinations_smoothed_per_million']=Greecevac['new_vaccinations_per_million'].rolling(window=7).mean()
+Greecevac['new_people_vaccinated_smoothed_per_hundred']=Greecevac['new_people_vaccinated_per_hundred'].rolling(window=7).mean()
+
 
 title=Greece_total.columns
 titles.str.contains('vac')
@@ -100,3 +104,4 @@ Total_Tests = Total_Tests[Total_Tests['tests_per_case'].notna()]
 Total_Tests=Total_Tests.reset_index()
 
 Greece_total = Greece_total.merge(Total_Tests,   how='left' , left_on='date', right_on='date')
+Greece_total.to_csv("owid_dataset_fixed" +".csv", float_format="%.3f",index=True, header=True)
