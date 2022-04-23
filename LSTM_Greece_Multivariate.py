@@ -572,8 +572,17 @@ titles = Greece_total.columns
 titles.str.contains('adm')
 admtitles = titles[titles.str.contains('adm')].to_list()
 Greece_total = Greece_total.drop(admtitles, axis=1)
+cases = titles[titles.str.contains('cases')].to_list()
 
-col=FeatureSelection(Greece_total,20)
+deaths = titles[titles.str.contains('deaths')].to_list()
+
+tests = titles[titles.str.contains('tests')].to_list()
+
+date = titles[titles.str.contains('date')].to_list()
+Feature = cases+deaths+tests+date
+
+Greece_total=Greece_total[Feature]
+
 
 for i in range(len(Klist)):
 
