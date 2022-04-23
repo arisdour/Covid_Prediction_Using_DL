@@ -56,13 +56,6 @@ def createdata(dataset,Κ):
     dates=pd.DataFrame(Greece['date']).reset_index(drop=True)
     Greece=Greece.drop( columns=['date']) 
 
-    # Greece["date"] = Greece_total['date']
-    # Greece=Greece.dropna(axis=0)
-    
-    
-    # Greece=Greece[(features)].reset_index(drop=True)
-
-    
     return dates , Greece
 
 def mean_absolute_percentage_error(y_true, y_pred):
@@ -125,7 +118,7 @@ def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.title('Predicted vs  Actual '  + pname + '  in Greece for ' +str(len(ypredict)) + ' days')
     plt.suptitle(predtype)
     plt.xlabel('Date')
-    plt.ylabel('deaths')
+    plt.ylabel('cases')
     plt.legend()
     plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
     plt.show()
@@ -151,8 +144,8 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 
 def model_create( seq_size , features):
     model = Sequential()
-    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
-    # model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total cases
+    # model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total cases
 
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -162,8 +155,8 @@ def model_create( seq_size , features):
 def stacked_model_create(seq_size , features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(LSTM(18, return_sequences=True))
-    model.add(LSTM(59, return_sequences=False))
+    model.add(LSTM(20, return_sequences=True))
+    model.add(LSTM(20, return_sequences=False))
 
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -217,17 +210,17 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset):
         predictiondata.loc[len(predictiondata.index)] = current_pred
 
     forecast = predictiondata[-(future):]  # Save results in a dataframe
-    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual deaths
+    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual cases
     forecast = pd.DataFrame(forecast.round())  # Round results
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1,
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1,
                          ignore_index=True)  # Concate the two dfs
 
     forecast = forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
 
-    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual deaths
+    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual cases
     predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Prediction N4'})  # Round results
     # print(predictN4)
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
@@ -515,48 +508,23 @@ def final_results(dataframe):
     finalresults=finalresults.set_index(['NAMES'])
     return finalresults
 
-def FeatureSelection(df,K):
-    
-    first_n_column  = df.iloc[369: , :14]
-    second_n_column = df.iloc[369: , 22:26]
-
-
-    first_n_column=pd.concat([first_n_column, second_n_column], axis=1)
-    first_n_column['stringency_index'] = Greece_total['stringency_index']
-    first_n_column['new_vaccinations_smoothed'] = Greece_total['new_vaccinations_smoothed']
-    first_n_column['new_vaccinations_smoothed_per_million'] = Greece_total['new_vaccinations_smoothed_per_million']
-
-    first_n_column = first_n_column.reindex(sorted(first_n_column.columns), axis=1)
-    first_n_column = first_n_column.dropna()
-    second_n_column= second_n_column.dropna()
-
-    # first_n_column.plot(subplots=True)
-    # plt.tight_layout()
-    # plt.show()
-
-    # fs = SelectKBest(score_func=f_regression, k=K)            # Use F regression 
-    fs = SelectKBest(score_func=mutual_info_regression, k=K)    #use mutual info 
-
-    
-
-    y=first_n_column['total_deaths'] # Set Total deaths as a Target
+def FeatureSelection(df, K):
+    fs = SelectKBest(score_func=f_regression, k=K)            # Use F regression
+    # fs = SelectKBest(score_func=mutual_info_regression, k=K)  # use mutual info
+    df = df.dropna()
+    y = df['total_cases']  # Set Total cases as a Target
     dates = df['date']
-    X=first_n_column.drop( columns=[ 'date' , 'total_deaths']) # Remove Total deaths
-
-
-    # y=df['total_deaths'] # Set Total deaths as a Target
-    # dates = df['date']
-    # X=df.drop( columns=[ 'date' , 'total_deaths','tests_units']) # Remove Total deaths
-    X_selected =fs.fit_transform(X, y)
+    X = df.drop(columns=['date', 'total_cases'])  # Remove Total cases
+    X_selected = fs.fit_transform(X, y)
 
     # X_selected=pd.concat([X_selected, y] , axis=1)
 
-    selected_col = fs.get_support(indices = True)
+    selected_col = fs.get_support(indices=True)
     Res = X.iloc[:, selected_col]
-    
-    Res=pd.concat([y,Res ] , axis=1)
-    Final=pd.concat([dates,Res ] , axis=1)
-    Final=Final.dropna()
+
+    Res = pd.concat([y, Res], axis=1)
+    Final = pd.concat([dates, Res], axis=1)
+    Final = Final.dropna()
     return Final.columns
 
 
@@ -584,13 +552,13 @@ loc="owid-covid-data.csv"
 mid=0
 seq_size = 3
 epochs = 60
-times = 1
-# Klist= [19,17,15,13,11,9,7,5,4,3,2,1]
-Klist= [1]
+times = 10
+Klist= [19,17,15,13,11,9,7,5,4,3,2,1]
+Klist= [3,2,1]
 
 nodes=0
 
-pname= 'deaths'
+pname= 'cases'
 
 
 
@@ -599,7 +567,13 @@ pname= 'deaths'
 ##### Data  Creation #####
 # Greece_total , titles =readdata(loc)
 Greece_total=pd.read_csv(r"owid_dataset_fixed.csv")
+# Remove  ICU *& Hospital Data from original Dataset
+titles = Greece_total.columns
+titles.str.contains('adm')
+admtitles = titles[titles.str.contains('adm')].to_list()
+Greece_total = Greece_total.drop(admtitles, axis=1)
 
+col=FeatureSelection(Greece_total,20)
 
 for i in range(len(Klist)):
 
@@ -641,7 +615,10 @@ for i in range(len(Klist)):
     
 metrics = pd.DataFrame(
 {'Feat':Features  ,'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
-  'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4, 'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'mid' : MID})
+  'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4,
+ 'MAPE 1 Day': MAPE_Next_day,
+         'MAPE 3 Days': MAPE_3days, 'MAPE 7 days': MAPE_7days, 'MAPE': MAPE,
+ 'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'mid' : MID})
 
 
 featnames = pd.DataFrame(metrics['Feat'].tolist())
@@ -666,15 +643,15 @@ average.to_csv("Results/Average_Valdation_Results_for__"+ str(len(feature_list))
 
 
 
-bestmodel = find_best_model(MAPE_4)
-print(bestmodel)
-
-callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
-bestmodel.fit(val_generator, epochs=60 ,  callbacks=[callback], verbose=1)
-
-
-forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
-
-finalresults=final_results(forecastf)
-
-finalresults.to_csv("Results\Final_Results_for_" +  str(len(feature_list)) +".csv", float_format="%.3f",index=True, header=True)
+# bestmodel = find_best_model(MAPE_4)
+# print(bestmodel)
+#
+# callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
+# bestmodel.fit(val_generator, epochs=60 ,  callbacks=[callback], verbose=1)
+#
+#
+# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+#
+# finalresults=final_results(forecastf)
+#
+# finalresults.to_csv("Results\Final_Results_for_" +  str(len(feature_list)) +".csv", float_format="%.3f",index=True, header=True)
