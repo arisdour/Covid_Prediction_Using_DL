@@ -110,7 +110,7 @@ GreeceTests['new_tests_per_thousand_smoothed']=GreeceTests['new_tests_per_thousa
 GreeceTests['tests_per_case']=test['tests_per_case']
 # GreeceTests['Original_total_tests']=test['total_tests']
 
-GreeceTests=GreeceTests.replace('nan', 'lour')
+GreeceTests=GreeceTests.replace('nan', np.NaN)
 
 
 GreeceTests = GreeceTests[GreeceTests['tests_per_case'].notna()]
