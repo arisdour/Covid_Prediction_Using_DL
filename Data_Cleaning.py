@@ -1,6 +1,5 @@
 import pandas as pd
-
-
+import numpy as np
 def readdata(location):
     data = pd.read_csv(location)
     Greece = data[data.location == 'Greece'].reset_index(drop='True')
@@ -11,97 +10,115 @@ def readdata(location):
 
 
 loc="owid-covid-data.csv"
+
+
+########################  Original Dataset ##############################
+
 Greece_total , titles =readdata(loc)
 
-
-data=pd.read_csv(r"C:\Users\Aris_Dourdounas\Downloads\vaccinations.csv")
-Greecevac = data[data.location =='Greece'].reset_index(drop='False')
-Greecevac=Greecevac.fillna( axis=0, method="ffill" )
-# Greecevac=Greecevac.set_index(Greecevac["date"], drop=False)
-Greecevac=Greecevac.drop(['location','iso_code', 'total_boosters','total_boosters_per_hundred'], axis=1)
-Greecevac['new_vaccinations_smoothed']=Greecevac['new_vaccinations'].rolling(window=7).mean()
-Greecevac['new_vaccinations_smoothed_per_million']=Greecevac['new_vaccinations_per_million'].rolling(window=7).mean()
-Greecevac['new_people_vaccinated_smoothed_per_hundred']=Greecevac['new_people_vaccinated_per_hundred'].rolling(window=7).mean()
-
-
-title=Greece_total.columns
-titles.str.contains('vac')
-features = titles[titles.str.contains('vac')].to_list()
-print(features)
-Greece_total=Greece_total.drop(features, axis=1)
+# Fix Smoothed Data
 Greece_total['new_cases_smoothed']= Greece_total['new_cases'].rolling(window=7).mean()
 Greece_total['new_deaths_smoothed']= Greece_total['new_deaths'].rolling(window=7).mean()
 
 Greece_total['new_cases_smoothed_per_million']= Greece_total['new_cases_smoothed']*0.096
 Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
 
-Greece_total = Greece_total.merge(Greecevac,   how='left' , left_on='date', right_on='date')
 
+######################## Vaccinations ###################################
 
+data=pd.read_csv(r"C:\Users\Aris_Dourdounas\Downloads\vaccinations.csv") #Read Vacciantion Data
+Greecevac = data[data.location =='Greece'].reset_index(drop='False')
+Greecevac=Greecevac.fillna( axis=0, method="ffill" ) #Fill NAN
 
+# Greecevac=Greecevac.set_index(Greecevac["date"], drop=False)
 
+Greecevac['new_vaccinations_smoothed']=Greecevac['new_vaccinations'].rolling(window=7).mean()
+Greecevac['new_vaccinations_smoothed_per_million']=Greecevac['new_vaccinations_per_million'].rolling(window=7).mean()
+Greecevac['new_people_vaccinated_smoothed_per_hundred']=Greecevac['new_people_vaccinated_per_hundred'].rolling(window=7).mean()
 
-######################## Tests ######################## Tests
+Greecevac=Greecevac.drop(['location','iso_code', 'total_boosters','total_boosters_per_hundred'], axis=1)  #Final Vaccination Dataset
+
+######################## ########################  ########################
+
+#Remove  Vaccination Data from original Dataset
+title=Greece_total.columns
+titles.str.contains('vac')
+vacf = titles[titles.str.contains('vac')].to_list()
+print(vacf)
+Greece_total=Greece_total.drop(vacf, axis=1)
+
+######################## ########################  ########################
+
+########################    Tests       ###################################
+
+#Remove  Test Data from original Dataset
 title=Greece_total.columns
 titles.str.contains('test')
-tf = titles[titles.str.contains('test')].to_list()
-test=Greece_total[tf]
-Greece_total=Greece_total.drop(tf , axis=1)
+testf = titles[titles.str.contains('test')].to_list()
+test=Greece_total[testf]
+Greece_total=Greece_total.drop(testf , axis=1)
+
+#Save original Test Data in DataFrame
 
 test=test.drop(['tests_units'], axis=1)
 test['date']=Greece_total['date']
 test=test.set_index('date')
 
+New_Test_df = pd.read_json(r"C:\Users\Aris_Dourdounas\Downloads\tests.json")
+New_Test_df = pd.DataFrame(New_Test_df.values.tolist(), index=New_Test_df.index)
 
-# pd.set_option("display.precision", 2)
-
-
-
-df2 = pd.read_json(r"C:\Users\Aris_Dourdounas\Downloads\tests.json")
-df2 = pd.DataFrame(df2.values.tolist(), index=df2.index)
-
-res = pd.DataFrame([{'feature' : key, 'value' : value } for d in df2[0].tolist() for key, value in d.items()])
+res = pd.DataFrame([{'feature' : key, 'value' : value } for d in New_Test_df[0].tolist() for key, value in d.items()])
 
 
 date = res[res['feature'].str.contains('date')].reset_index(drop=True)
 rapid = res[res['feature'].str.contains('rapid')].reset_index(drop=True)
-rapidtests = res[res['feature'].str.contains('^tests$')].reset_index(drop=True)
+tottests = res[res['feature'].str.contains('^tests$')].reset_index(drop=True)
 
 newtests=pd.DataFrame()
-newtests['tests'] = rapidtests['value']
+newtests['tests'] = tottests['value']
 newtests['rapid_tests'] = rapid['value']
 newtests['date'] = date['value']
+missing_date = pd.DataFrame({"tests": np.NaN, "rapid_tests": np.NaN , "date": '2021-05-02'}, index=[431])
+newtests = pd.concat([newtests.iloc[:431], missing_date, newtests.iloc[431:]]).reset_index(drop=True)
 newtests['total_tests'] = newtests["tests"] + newtests["rapid_tests"]
+
+
 # newtests=newtests.set_index('date')
 
-Total_Tests=pd.DataFrame()
-Total_Tests['total_tests'] = newtests['total_tests']
+GreeceTests=pd.DataFrame()
+GreeceTests['total_tests'] = newtests['total_tests']
+GreeceTests['date'] = newtests['date']
+GreeceTests=GreeceTests.fillna( axis=0, method="ffill" , limit=2 )
 
-Total_Tests['date'] = newtests['date']
-Total_Tests =Total_Tests.set_index(['date'])
 
-Total_Tests['new_tests'] = Total_Tests['total_tests'].diff()
+GreeceTests =GreeceTests.set_index(['date'])
+
+GreeceTests['new_tests'] = GreeceTests['total_tests'].diff()
 
 
 
 #Per thousand
-Total_Tests['total_tests_per_thousand']=Total_Tests['total_tests']* 0.000096
-Total_Tests['new_tests_per_thousand']=Total_Tests['new_tests']* 0.000096
+GreeceTests['total_tests_per_thousand']=GreeceTests['total_tests']* 0.000096
+GreeceTests['new_tests_per_thousand']=GreeceTests['new_tests']* 0.000096
 
 #Smoothed
 
-Total_Tests['new_tests_smoothed']=Total_Tests['new_tests'].rolling(window=7,min_periods=5).mean()
-Total_Tests['new_tests_per_thousand_smoothed']=Total_Tests['new_tests_per_thousand'].rolling(window=7, min_periods=5).mean()
+GreeceTests['new_tests_smoothed']=GreeceTests['new_tests'].rolling(window=7,min_periods=5).mean()
+GreeceTests['new_tests_per_thousand_smoothed']=GreeceTests['new_tests_per_thousand'].rolling(window=7, min_periods=5).mean()
 
 
-Total_Tests['tests_per_case']=test['tests_per_case']
-# Total_Tests['Original_total_tests']=test['total_tests']
+GreeceTests['tests_per_case']=test['tests_per_case']
+# GreeceTests['Original_total_tests']=test['total_tests']
 
-Total_Tests=Total_Tests.replace('nan', 'lour')
+GreeceTests=GreeceTests.replace('nan', 'lour')
 
 
-Total_Tests = Total_Tests[Total_Tests['tests_per_case'].notna()]
-Total_Tests=Total_Tests.reset_index()
+GreeceTests = GreeceTests[GreeceTests['tests_per_case'].notna()]
+GreeceTests=GreeceTests.reset_index()
 
-Greece_total = Greece_total.merge(Total_Tests,   how='left' , left_on='date', right_on='date')
+######################## ########################  ########################
+########################    FINAL MERGE            ########################
+
+Greece_total = Greece_total.merge(Greecevac,   how='left' , left_on='date', right_on='date')
+Greece_total = Greece_total.merge(GreeceTests,   how='left' , left_on='date', right_on='date')
 Greece_total.to_csv("owid_dataset_fixed" +".csv", float_format="%.3f",index=True, header=True)
