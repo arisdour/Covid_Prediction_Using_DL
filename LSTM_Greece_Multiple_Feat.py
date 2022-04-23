@@ -517,19 +517,19 @@ def final_results(dataframe):
     Comp1 = []
     Comp2 = []
 
-    mape_9_Days = mean_absolute_percentage_error(forecastf['Actual'][:9], forecastf['Prediction'][:9])
+    mape_9_Days = mean_absolute_percentage_error(dataframe['Actual'][:9], dataframe['Prediction'][:9])
     mape_9_Days = float("{:.3f}".format(mape_9_Days))
     Comp1.append(mape_9_Days)
 
-    mape_9_Days = mean_absolute_percentage_error(forecastf['Actual'][:9], forecastf['Prediction N4'][:9])
+    mape_9_Days = mean_absolute_percentage_error(dataframe['Actual'][:9], dataframe['Prediction N4'][:9])
     mape_9_Days = float("{:.3f}".format(mape_9_Days))
     Comp1.append(mape_9_Days)
 
-    mape_40_Days = mean_absolute_percentage_error(forecastf['Actual'][:40], forecastf['Prediction'][:40])
+    mape_40_Days = mean_absolute_percentage_error(dataframe['Actual'][:40], dataframe['Prediction'][:40])
     mape_40_Days = float("{:.3f}".format(mape_40_Days))
     Comp2.append(mape_40_Days)
 
-    mape_40_Days = mean_absolute_percentage_error(forecastf['Actual'][:40], forecastf['Prediction N4'][:40])
+    mape_40_Days = mean_absolute_percentage_error(dataframe['Actual'][:40], dataframe['Prediction N4'][:40])
     mape_40_Days = float("{:.3f}".format(mape_40_Days))
     Comp2.append(mape_40_Days)
 
