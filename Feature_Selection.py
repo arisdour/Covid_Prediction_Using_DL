@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
+import seaborn as sns
 
 
 import matplotlib.pyplot as plt
@@ -68,7 +68,7 @@ Greece_total = Greece_total.drop(admtitles, axis=1)
 # Greece_total=Greece_total[Feature]
 
 
-results =FeatureSelection(Greece_total, 20)
+results =FeatureSelection(Greece_total, 5)
 results=results.to_list()
 results=Greece_total[results]
 # Greece=Greece_total[results]
@@ -84,4 +84,9 @@ plt.yticks(range(Greece_total.select_dtypes(['number']).shape[1]), Greece_total.
 cb = plt.colorbar()
 cb.ax.tick_params(labelsize=14)
 plt.title('Correlation Matrix', fontsize=16);
+plt.show()
+
+correlation_mat = Greece_total.corr()
+f = plt.figure(figsize=(40, 40))
+sns.heatmap(correlation_mat, annot = True)
 plt.show()
