@@ -3,19 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
 from sklearn.feature_selection import mutual_info_regression
 
-
-import tensorflow
-from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM
-from tensorflow.keras.layers import Dense
-from tensorflow.keras import callbacks
 
 
 from sklearn.preprocessing import MinMaxScaler
@@ -52,28 +43,45 @@ def FeatureSelection(df, K):
 ##### Data  Creation #####
 # Greece_total , titles =readdata(loc)
 Greece_total=pd.read_csv(r"owid_dataset_fixed.csv")
+
 # Remove  ICU *& Hospital Data from original Dataset
 titles = Greece_total.columns
 titles.str.contains('adm')
 admtitles = titles[titles.str.contains('adm')].to_list()
+
 Greece_total = Greece_total.drop(admtitles, axis=1)
 
+# Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
 
 
 
 
 
-cases = titles[titles.str.contains('cases')].to_list()
+# cases = titles[titles.str.contains('cases')].to_list()
+#
+# deaths = titles[titles.str.contains('deaths')].to_list()
+#
+# tests = titles[titles.str.contains('tests')].to_list()
+#
+# date = titles[titles.str.contains('date')].to_list()
+# Feature = cases+deaths+tests+date
+# Greece_total=Greece_total[Feature]
 
-deaths = titles[titles.str.contains('deaths')].to_list()
 
-tests = titles[titles.str.contains('tests')].to_list()
+results =FeatureSelection(Greece_total, 20)
+results=results.to_list()
+results=Greece_total[results]
+# Greece=Greece_total[results]
+#Plot Correlation
 
-date = titles[titles.str.contains('date')].to_list()
-Feature = cases+deaths+tests+date
-Greece_total=Greece_total[Feature]
+Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
 
+f = plt.figure(figsize=(40, 40))
 
-results =FeatureSelection(Greece_total, 1)
-Greece_total=Greece_total[results]
-
+plt.matshow(Greece_total.corr(), fignum=f.number)
+plt.xticks(range(Greece_total.select_dtypes(['number']).shape[1]), Greece_total.select_dtypes(['number']).columns, fontsize=14, rotation=45)
+plt.yticks(range(Greece_total.select_dtypes(['number']).shape[1]), Greece_total.select_dtypes(['number']).columns, fontsize=14)
+cb = plt.colorbar()
+cb.ax.tick_params(labelsize=14)
+plt.title('Correlation Matrix', fontsize=16);
+plt.show()
