@@ -46,17 +46,28 @@ def featcombos(featurename ,titles , combin) :
     
     return feature_list
 
-def createdata(dataset,Κ):
-    columns=FeatureSelection(dataset, Κ)
-    # columns = ['date', 'total_cases']# 'new_vaccinations_smoothed']
-    print(columns)
-    Greece=dataset[columns]
-    Greece=Greece.dropna(axis=0)
-    Greece=Greece.reset_index(drop=True)
-    dates=pd.DataFrame(Greece['date']).reset_index(drop=True)
-    Greece=Greece.drop( columns=['date']) 
+# def createdata(dataset,Κ):
+#     columns=FeatureSelection(dataset, Κ)
+#     columns = ['date', 'total_cases','total_cases_per_million' , 'total_tests_per_thousand']# 'new_vaccinations_smoothed']
+#     print(columns)
+#     Greece=dataset[columns]
+#     Greece=Greece.dropna(axis=0)
+#     Greece=Greece.reset_index(drop=True)
+#     dates=pd.DataFrame(Greece['date']).reset_index(drop=True)
+#     Greece=Greece.drop( columns=['date'])
+#
+#     return dates , Greece
 
-    return dates , Greece
+
+def createdata(dataset, features):
+    Greece = dataset[features]
+    Greece["date"] = Greece_total['date']
+    Greece = Greece.dropna(axis=0)
+
+    dates = pd.DataFrame(Greece['date']).reset_index(drop=True)
+    Greece = Greece[(features)].reset_index(drop=True)
+
+    return dates, Greece
 
 def mean_absolute_percentage_error(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
@@ -552,9 +563,9 @@ loc="owid-covid-data.csv"
 mid=0
 seq_size = 3
 epochs = 60
-times = 10
-Klist= [19,17,15,13,11,9,7,5,4,3,2,1]
-Klist= [3,2,1]
+times = 1
+# Klist= [19,17,15,13,11,9,7,5,4,3,2,1]
+Klist= [1]
 
 nodes=0
 
@@ -572,29 +583,55 @@ titles = Greece_total.columns
 titles.str.contains('adm')
 admtitles = titles[titles.str.contains('adm')].to_list()
 Greece_total = Greece_total.drop(admtitles, axis=1)
-cases = titles[titles.str.contains('cases')].to_list()
 
-deaths = titles[titles.str.contains('deaths')].to_list()
+#######################################################################################################################
+Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
 
-tests = titles[titles.str.contains('tests')].to_list()
+total_cases_cor=pd.DataFrame()
+#Plot Acctual Correlation (Pearson)
 
-date = titles[titles.str.contains('date')].to_list()
-Feature = cases+deaths+tests+date
+correlation_mat_p = Greece_total.corr()
+total_cases_cor['Pearson'] = correlation_mat_p['total_cases']
+correlation_mat_s = Greece_total.corr(method='spearman')
 
-Greece_total=Greece_total[Feature]
+correlation_mat_s = Greece_total.corr(method='spearman')
+total_cases_cor['Spearman'] = correlation_mat_s['total_cases']
+Spearman=total_cases_cor['Spearman']
+Spearman=Spearman[Spearman > 0.9]
+Spearman=Spearman.index.to_list()
+flist = list(combinations(Spearman , 5))
 
+flist=flist[:2]   ## Contorl length
 
-for i in range(len(Klist)):
+Greece_total=pd.read_csv(r"owid_dataset_fixed.csv")
 
-    K=Klist[i]
-    print(K)
+#######################################################################################################################
+for i in range(len(flist)):
+
+    feature_list= flist[i]
+    feature_list = list(itertools.chain(feature_list))
+    feature_list.append('date')
     mid=mid+1
-    dates,greece  =createdata(Greece_total,K)
-    
+    # dates,greece  =createdata(Greece_total,Feature)
+    greece=Greece_total[feature_list]
+    greece = greece.dropna(axis=0)
+    dates=pd.DataFrame()
+    dates['date'] = greece['date'].reset_index(drop=True)
+
+    greece=greece.drop(columns=['date'])
+
+
     feature_list=(greece.columns).to_list()
     a=str(feature_list)
     n_features = len(feature_list)
-    
+
+
+
+
+
+
+
+
     train_set, validation_set, test_set = split_data( greece, seq_size)
     scaler = MinMaxScaler() 
     scaler.fit(train_set)
@@ -645,10 +682,10 @@ average=pd.concat([average, unique_featnames], axis=1 , ignore_index=False)
  
 
 # # #Save Results
-metrics.to_csv("Results/Metrics_Valdation_Results_for_"+ str(len(feature_list)) + "_"+ str(K)+ ".csv", float_format="%.5f",index=True, header=True)
-# metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
-analytical.to_csv("Results/Analytical_Valdation_Results_for_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
-average.to_csv("Results/Average_Valdation_Results_for__"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
+# metrics.to_csv("Results/Metrics_Valdation_Results_for_"+ str(len(feature_list)) + "_"+ str(K)+ ".csv", float_format="%.5f",index=True, header=True)
+# # metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
+# analytical.to_csv("Results/Analytical_Valdation_Results_for_"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
+# average.to_csv("Results/Average_Valdation_Results_for__"+ str(len(feature_list)) +"_"+ str(K)+".csv", float_format="%.5f",index=True, header=True)
 
 
 
