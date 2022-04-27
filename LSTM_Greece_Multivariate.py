@@ -28,37 +28,6 @@ from itertools  import combinations
 import LSTM_Greece_Multivariate
 
 
-def readdata(location):
-    
-    data=pd.read_csv(location)
-    Greece= data[data.location =='Greece'].reset_index(drop='True')
-    Greece = Greece.dropna(how='all', axis=1)
-    Greece_total = Greece.iloc[7:498, 3:40].reset_index(drop='True')
-    titles =Greece_total.columns
-    return Greece_total , titles
-
-def featcombos(featurename ,titles , combin) :
-    
-    titles.str.contains(featurename)
-    features = titles[titles.str.contains(featurename)].to_list()
-    print(features)
-    feature_list = list(combinations(features , combin))
-    
-    return feature_list
-
-# def createdata(dataset,Κ):
-#     columns=FeatureSelection(dataset, Κ)
-#     columns = ['date', 'total_cases','total_cases_per_million' , 'total_tests_per_thousand']# 'new_vaccinations_smoothed']
-#     print(columns)
-#     Greece=dataset[columns]
-#     Greece=Greece.dropna(axis=0)
-#     Greece=Greece.reset_index(drop=True)
-#     dates=pd.DataFrame(Greece['date']).reset_index(drop=True)
-#     Greece=Greece.drop( columns=['date'])
-#
-#     return dates , Greece
-
-
 def createdata(dataset, features):
     Greece = dataset[features]
     Greece["date"] = Greece_total['date']
@@ -301,8 +270,7 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
     Epochs.append(epochs)
     Features.append(feature_list)
 
-    LR.append(lrate)
-    MID.append(mid)
+
 
     # Normal Prediction Metrics
 
@@ -519,25 +487,6 @@ def final_results(dataframe):
     finalresults=finalresults.set_index(['NAMES'])
     return finalresults
 
-def FeatureSelection(df, K):
-    fs = SelectKBest(score_func=f_regression, k=K)            # Use F regression
-    # fs = SelectKBest(score_func=mutual_info_regression, k=K)  # use mutual info
-    df = df.dropna()
-    y = df['total_cases']  # Set Total cases as a Target
-    dates = df['date']
-    X = df.drop(columns=['date', 'total_cases'])  # Remove Total cases
-    X_selected = fs.fit_transform(X, y)
-
-    # X_selected=pd.concat([X_selected, y] , axis=1)
-
-    selected_col = fs.get_support(indices=True)
-    Res = X.iloc[:, selected_col]
-
-    Res = pd.concat([y, Res], axis=1)
-    Final = pd.concat([dates, Res], axis=1)
-    Final = Final.dropna()
-    return Final.columns
-
 
 ##########################  MAIN ##############################################
 
@@ -553,31 +502,25 @@ MAPE_4_3days = []
 MAPE_4_7days = []
 MAPE_4_Next_day = []
 Features = []
-MID=[]
 MAPE_Next_day = []  #1 Day
 MAPE_3days = []    ## Days
 MAPE_7days = []    #7 Days
 MAPE = []           #14 Days
-loc="owid-covid-data.csv"
+loc="owid_dataset_fixed.csv"
 
-mid=0
+
 seq_size = 3
-epochs = 60
-times = 1
-# Klist= [19,17,15,13,11,9,7,5,4,3,2,1]
-Klist= [1]
-
-nodes=0
-
+epochs = 1
+times = 10
 pname= 'cases'
-
+ctrl=2
 
 
 
 
 ##### Data  Creation #####
-# Greece_total , titles =readdata(loc)
-Greece_total=pd.read_csv(r"owid_dataset_fixed.csv")
+Greece_total=pd.read_csv(loc)
+
 # Remove  ICU *& Hospital Data from original Dataset
 titles = Greece_total.columns
 titles.str.contains('adm')
@@ -588,8 +531,6 @@ Greece_total = Greece_total.drop(admtitles, axis=1)
 Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
 
 total_cases_cor=pd.DataFrame()
-#Plot Acctual Correlation (Pearson)
-
 correlation_mat_p = Greece_total.corr()
 total_cases_cor['Pearson'] = correlation_mat_p['total_cases']
 correlation_mat_s = Greece_total.corr(method='spearman')
@@ -599,37 +540,32 @@ total_cases_cor['Spearman'] = correlation_mat_s['total_cases']
 Spearman=total_cases_cor['Spearman']
 Spearman=Spearman[Spearman > 0.9]
 Spearman=Spearman.index.to_list()
-flist = list(combinations(Spearman , 5))
 
-flist=flist[:2]   ## Contorl length
+### Combinations ###
+flist = list(combinations(Spearman , 2))
+flist=[ x for x in flist if "total_"+ pname in x ] # Must always contain total cases/ cases
+flist=flist*times
+flist=flist[:ctrl]   ## Control length
 
-Greece_total=pd.read_csv(r"owid_dataset_fixed.csv")
+dates = pd.DataFrame()
 
 #######################################################################################################################
+Greece_total=pd.read_csv(loc)
+
 for i in range(len(flist)):
 
     feature_list= flist[i]
     feature_list = list(itertools.chain(feature_list))
     feature_list.append('date')
-    mid=mid+1
-    # dates,greece  =createdata(Greece_total,Feature)
     greece=Greece_total[feature_list]
     greece = greece.dropna(axis=0)
-    dates=pd.DataFrame()
-    dates['date'] = greece['date'].reset_index(drop=True)
 
+    dates['date'] = greece['date'].reset_index(drop=True)
     greece=greece.drop(columns=['date'])
 
 
     feature_list=(greece.columns).to_list()
-    a=str(feature_list)
     n_features = len(feature_list)
-
-
-
-
-
-
 
 
     train_set, validation_set, test_set = split_data( greece, seq_size)
@@ -648,15 +584,9 @@ for i in range(len(flist)):
     train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,test_set)
     
     inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,dates)
-    
-    # a,b=test_generator[3]
-    
-    
-    for i in range (times):
-        experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , 0.0001 )
-    
-    ### Format Rsults ###
-    
+
+    experiments(i, 0, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , 0.0001 )
+
     
     
 metrics = pd.DataFrame(
@@ -664,18 +594,19 @@ metrics = pd.DataFrame(
   'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4,
  'MAPE 1 Day': MAPE_Next_day,
          'MAPE 3 Days': MAPE_3days, 'MAPE 7 days': MAPE_7days, 'MAPE': MAPE,
- 'MSE_4': MSE_4, 'RMSE_4': RMSE_4 , 'mid' : MID})
+ 'MSE_4': MSE_4, 'RMSE_4': RMSE_4 })
+metrics[['Feature 1','Feature 2' ]] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
+average = metrics.groupby(['Feature 1','Feature 2' ]).mean()
 
-
-featnames = pd.DataFrame(metrics['Feat'].tolist())
-
-unique_featnames=featnames.drop_duplicates().reset_index(drop=True)
-
-analytical=pd.concat([metrics, featnames], axis=1)
-analytical=analytical.drop(columns=["Feat"])
-
-average = analytical.groupby("mid").mean(numeric_only=True).reset_index()
-average=pd.concat([average, unique_featnames], axis=1 , ignore_index=False)
+# featnames = pd.DataFrame(metrics['Feat'].tolist())
+#
+# unique_featnames=featnames.drop_duplicates().reset_index(drop=True)
+#
+# analytical=pd.concat([metrics, featnames], axis=1)
+# analytical=analytical.drop(columns=["Feat"])
+#
+# average = analytical.groupby("mid").mean(numeric_only=True).reset_index()
+# average=pd.concat([average, unique_featnames], axis=1 , ignore_index=False)
 
 
 
