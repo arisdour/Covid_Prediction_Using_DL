@@ -510,10 +510,11 @@ loc="owid_dataset_fixed.csv"
 
 
 seq_size = 3
-epochs = 1
+epochs = 60
 times = 10
 pname= 'cases'
-ctrl=2
+# ctrl=2
+combos=2
 
 
 
@@ -542,10 +543,10 @@ Spearman=Spearman[Spearman > 0.9]
 Spearman=Spearman.index.to_list()
 
 ### Combinations ###
-flist = list(combinations(Spearman , 2))
+flist = list(combinations(Spearman , combos))
 flist=[ x for x in flist if "total_"+ pname in x ] # Must always contain total cases/ cases
 flist=flist*times
-flist=flist[:ctrl]   ## Control length
+# flist=flist[:ctrl]   ## Control length
 
 dates = pd.DataFrame()
 
