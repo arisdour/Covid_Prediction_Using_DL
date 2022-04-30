@@ -155,7 +155,7 @@ def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
 
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep ,verbose=1,callbacks =[earlystopping])
     model.save('Models\model_' + str(i) + '.h5', overwrite=True)
-    plotloss(history,str(i))
+    # plotloss(history,str(i))
     # avep.append( len(history.history['loss']))
     
     
@@ -230,15 +230,15 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lrate):
     
-    # experimentmodel = model_create( seq_size ,n_features)
-    experimentmodel = stacked_model_create( seq_size ,n_features) #stacked
+    experimentmodel = model_create( seq_size ,n_features)
+    # experimentmodel = stacked_model_create( seq_size ,n_features) #stacked
 
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-    plotprediction(forecast ,0,str(i) , pname , 'For Loop Prediction')
-    plotprediction(forecast ,2, str(i), pname, 'Normal Prediction')
+    # plotprediction(forecast ,0,str(i) , pname , 'For Loop Prediction')
+    # plotprediction(forecast ,2, str(i), pname, 'Normal Prediction')
     
     
     ##################### Metrics ######################
@@ -513,10 +513,7 @@ seq_size = 3
 epochs = 60
 times = 10
 pname= 'cases'
-# ctrl=2
-combos=2
-
-
+ctrl=[2,3,4,5,6,7,8,9,10]
 
 
 ##### Data  Creation #####
@@ -540,53 +537,61 @@ correlation_mat_s = Greece_total.corr(method='spearman')
 total_cases_cor['Spearman'] = correlation_mat_s['total_cases']
 Spearman=total_cases_cor['Spearman']
 Spearman=Spearman[Spearman > 0.9]
+Spearman=Spearman.sort_values(ascending=False)
 Spearman=Spearman.index.to_list()
 
-### Combinations ###
-flist = list(combinations(Spearman , combos))
-flist=[ x for x in flist if "total_"+ pname in x ] # Must always contain total cases/ cases
-flist=flist*times
-# flist=flist[:ctrl]   ## Control length
+for i in range(len(ctrl)):
+    control = ctrl[i]
+    print(control)
+    cor=Spearman[:control]
 
-dates = pd.DataFrame()
-
+    ## Combinations ###
+    flist = list(combinations(cor , len(cor)))
+    flist=[ x for x in flist if "total_"+ pname in x ] # Must always contain total cases/ cases
+    flist=flist*times
+     ## Control length
+    flist=sorted(flist)
+    # flist=flist[:ctrl]
+    # flist=Spearman
+    dates = pd.DataFrame()
+    print(flist)
 #######################################################################################################################
-Greece_total=pd.read_csv(loc)
+    Greece_total=pd.read_csv(loc)
 
-for i in range(len(flist)):
+    for i in range(len(flist)):
 
-    feature_list= flist[i]
-    feature_list = list(itertools.chain(feature_list))
-    feature_list.append('date')
-    greece=Greece_total[feature_list]
-    greece = greece.dropna(axis=0)
+        feature_list= flist[i]
+        feature_list = list(itertools.chain(feature_list))
+        feature_list.append('date')
+        greece=Greece_total[feature_list]
+        greece = greece.dropna(axis=0)
 
-    dates['date'] = greece['date'].reset_index(drop=True)
-    greece=greece.drop(columns=['date'])
-
-
-    feature_list=(greece.columns).to_list()
-    n_features = len(feature_list)
+        dates['date'] = greece['date'].reset_index(drop=True)
+        greece=greece.drop(columns=['date'])
 
 
-    train_set, validation_set, test_set = split_data( greece, seq_size)
-    scaler = MinMaxScaler() 
-    scaler.fit(train_set)
-    
-    train_set=pd.DataFrame(scaler.transform(train_set))
-    train_set=train_set.set_axis(feature_list, axis=1, inplace=False)
-    
-    validation_set=pd.DataFrame(scaler.transform(validation_set))
-    validation_set=validation_set.set_axis(feature_list, axis=1, inplace=False)
-    
-    test_set=pd.DataFrame(scaler.transform(test_set))
-    test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
-    
-    train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,test_set)
-    
-    inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,dates)
+        feature_list=(greece.columns).to_list()
+        n_features = len(feature_list)
 
-    experiments(i, 0, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , 0.0001 )
+
+        train_set, validation_set, test_set = split_data( greece, seq_size)
+        scaler = MinMaxScaler()
+        scaler.fit(train_set)
+
+        train_set=pd.DataFrame(scaler.transform(train_set))
+        train_set=train_set.set_axis(feature_list, axis=1, inplace=False)
+
+        validation_set=pd.DataFrame(scaler.transform(validation_set))
+        validation_set=validation_set.set_axis(feature_list, axis=1, inplace=False)
+
+        test_set=pd.DataFrame(scaler.transform(test_set))
+        test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
+
+        train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,test_set)
+
+        inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,dates)
+
+        experiments(i, 0, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , 0.0001 )
 
     
     
@@ -596,22 +601,8 @@ metrics = pd.DataFrame(
  'MAPE 1 Day': MAPE_Next_day,
          'MAPE 3 Days': MAPE_3days, 'MAPE 7 days': MAPE_7days, 'MAPE': MAPE,
  'MSE_4': MSE_4, 'RMSE_4': RMSE_4 })
-metrics[['Feature 1','Feature 2' ]] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
-average = metrics.groupby(['Feature 1','Feature 2' ]).mean()
 
-# featnames = pd.DataFrame(metrics['Feat'].tolist())
-#
-# unique_featnames=featnames.drop_duplicates().reset_index(drop=True)
-#
-# analytical=pd.concat([metrics, featnames], axis=1)
-# analytical=analytical.drop(columns=["Feat"])
-#
-# average = analytical.groupby("mid").mean(numeric_only=True).reset_index()
-# average=pd.concat([average, unique_featnames], axis=1 , ignore_index=False)
-
-
-
- 
+average = metrics.groupby(metrics['Feat'].map(tuple)).mean()
 
 # #Save Results
 metrics.to_csv("Results/Metrics_Valdation_Results_for_"+ str(len(feature_list))+ ".csv", float_format="%.5f",index=True, header=True)
@@ -631,3 +622,8 @@ average.to_csv("Results/Average_Valdation_Results_for__"+ str(len(feature_list))
 # finalresults=final_results(forecastf)
 #
 # finalresults.to_csv("Results\Final_Results_for_" +  str(len(feature_list)) +".csv", float_format="%.3f",index=True, header=True)
+
+import winsound
+winsound.Beep(800, 300)
+winsound.Beep(800, 900)
+winsound.Beep(800, 300)
