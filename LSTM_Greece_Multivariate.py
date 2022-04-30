@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-
+import winsound
 
 import tensorflow
 from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
@@ -98,7 +98,7 @@ def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.title('Predicted vs  Actual '  + pname + '  in Greece for ' +str(len(ypredict)) + ' days')
     plt.suptitle(predtype)
     plt.xlabel('Date')
-    plt.ylabel('cases')
+    plt.ylabel('deaths')
     plt.legend()
     plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
     plt.show()
@@ -124,8 +124,8 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 
 def model_create( seq_size , features):
     model = Sequential()
-    # model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
-    model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total cases
+    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    # model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total deaths
 
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -135,8 +135,8 @@ def model_create( seq_size , features):
 def stacked_model_create(seq_size , features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(LSTM(20, return_sequences=True))
-    model.add(LSTM(20, return_sequences=False))
+    model.add(LSTM(18, return_sequences=True))
+    model.add(LSTM(59, return_sequences=False))
 
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -190,17 +190,17 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset):
         predictiondata.loc[len(predictiondata.index)] = current_pred
 
     forecast = predictiondata[-(future):]  # Save results in a dataframe
-    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual cases
+    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual deaths
     forecast = pd.DataFrame(forecast.round())  # Round results
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1,
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1,
                          ignore_index=True)  # Concate the two dfs
 
     forecast = forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
 
-    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual cases
+    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual deaths
     predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Prediction N4'})  # Round results
     # print(predictN4)
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
@@ -230,8 +230,8 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lrate):
     
-    experimentmodel = model_create( seq_size ,n_features)
-    # experimentmodel = stacked_model_create( seq_size ,n_features) #stacked
+    # experimentmodel = model_create( seq_size ,n_features)
+    experimentmodel = stacked_model_create( seq_size ,n_features) #stacked
 
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
@@ -512,7 +512,7 @@ loc="owid_dataset_fixed.csv"
 seq_size = 3
 epochs = 60
 times = 10
-pname= 'cases'
+pname= 'deaths'
 ctrl=[2,3,4,5,6,7,8,9,10]
 
 
@@ -528,14 +528,14 @@ Greece_total = Greece_total.drop(admtitles, axis=1)
 #######################################################################################################################
 Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
 
-total_cases_cor=pd.DataFrame()
+total_deaths_cor=pd.DataFrame()
 correlation_mat_p = Greece_total.corr()
-total_cases_cor['Pearson'] = correlation_mat_p['total_cases']
+total_deaths_cor['Pearson'] = correlation_mat_p['total_deaths']
 correlation_mat_s = Greece_total.corr(method='spearman')
 
 correlation_mat_s = Greece_total.corr(method='spearman')
-total_cases_cor['Spearman'] = correlation_mat_s['total_cases']
-Spearman=total_cases_cor['Spearman']
+total_deaths_cor['Spearman'] = correlation_mat_s['total_deaths']
+Spearman=total_deaths_cor['Spearman']
 Spearman=Spearman[Spearman > 0.9]
 Spearman=Spearman.sort_values(ascending=False)
 Spearman=Spearman.index.to_list()
@@ -547,7 +547,7 @@ for i in range(len(ctrl)):
 
     ## Combinations ###
     flist = list(combinations(cor , len(cor)))
-    flist=[ x for x in flist if "total_"+ pname in x ] # Must always contain total cases/ cases
+    flist=[ x for x in flist if "total_"+ pname in x ] # Must always contain total deaths/ cases
     flist=flist*times
      ## Control length
     flist=sorted(flist)
@@ -623,7 +623,7 @@ average.to_csv("Results/Average_Valdation_Results_for__"+ str(len(feature_list))
 #
 # finalresults.to_csv("Results\Final_Results_for_" +  str(len(feature_list)) +".csv", float_format="%.3f",index=True, header=True)
 
-import winsound
+
 winsound.Beep(800, 300)
 winsound.Beep(800, 900)
 winsound.Beep(800, 300)
