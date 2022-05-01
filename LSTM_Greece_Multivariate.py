@@ -25,7 +25,7 @@ from itertools  import combinations
 
 
 ########################## Functions   ###################################
-import LSTM_Greece_Multivariate
+
 
 
 def createdata(dataset, features):
@@ -98,7 +98,7 @@ def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.title('Predicted vs  Actual '  + pname + '  in Greece for ' +str(len(ypredict)) + ' days')
     plt.suptitle(predtype)
     plt.xlabel('Date')
-    plt.ylabel('deaths')
+    plt.ylabel('cases')
     plt.legend()
     plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
     plt.show()
@@ -125,7 +125,7 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 def model_create( seq_size , features):
     model = Sequential()
     model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
-    # model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total deaths
+    # model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total cases
 
     model.add(Dense(n_features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -155,7 +155,7 @@ def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
 
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep ,verbose=1,callbacks =[earlystopping])
     model.save('Models\model_' + str(i) + '.h5', overwrite=True)
-    # plotloss(history,str(i))
+    plotloss(history,str(i))
     # avep.append( len(history.history['loss']))
     
     
@@ -190,17 +190,17 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset):
         predictiondata.loc[len(predictiondata.index)] = current_pred
 
     forecast = predictiondata[-(future):]  # Save results in a dataframe
-    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual deaths
+    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual cases
     forecast = pd.DataFrame(forecast.round())  # Round results
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1,
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1,
                          ignore_index=True)  # Concate the two dfs
 
     forecast = forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
 
-    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual deaths
+    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual cases
     predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Prediction N4'})  # Round results
     # print(predictN4)
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
@@ -237,8 +237,8 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
     forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
-    # plotprediction(forecast ,0,str(i) , pname , 'For Loop Prediction')
-    # plotprediction(forecast ,2, str(i), pname, 'Normal Prediction')
+    plotprediction(forecast ,0,str(i) , pname , 'For Loop Prediction')
+    plotprediction(forecast ,2, str(i), pname, 'Normal Prediction')
     
     
     ##################### Metrics ######################
@@ -512,8 +512,8 @@ loc="owid_dataset_fixed.csv"
 seq_size = 3
 epochs = 60
 times = 10
-pname= 'deaths'
-ctrl=[2,3,4,5,6,7,8,9,10]
+pname= 'cases'
+ctrl=[2]#,3,4,5,6,7,8,9,10]
 
 
 ##### Data  Creation #####
@@ -528,14 +528,14 @@ Greece_total = Greece_total.drop(admtitles, axis=1)
 #######################################################################################################################
 Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
 
-total_deaths_cor=pd.DataFrame()
+total_cases_cor=pd.DataFrame()
 correlation_mat_p = Greece_total.corr()
-total_deaths_cor['Pearson'] = correlation_mat_p['total_deaths']
+total_cases_cor['Pearson'] = correlation_mat_p['total_cases']
 correlation_mat_s = Greece_total.corr(method='spearman')
 
 correlation_mat_s = Greece_total.corr(method='spearman')
-total_deaths_cor['Spearman'] = correlation_mat_s['total_deaths']
-Spearman=total_deaths_cor['Spearman']
+total_cases_cor['Spearman'] = correlation_mat_s['total_cases']
+Spearman=total_cases_cor['Spearman']
 Spearman=Spearman[Spearman > 0.9]
 Spearman=Spearman.sort_values(ascending=False)
 Spearman=Spearman.index.to_list()
@@ -593,8 +593,7 @@ for i in range(len(ctrl)):
 
         experiments(i, 0, scaler, seq_size, epochs, n_features, train_generator, val_generator,validation_set, train_set, inv_val, inv_test, dates , 0.0001 )
 
-    
-    
+
 metrics = pd.DataFrame(
 {'Feat':Features  ,'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
   'MAPE_4 3 Days': MAPE_4_3days,'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4,
@@ -610,18 +609,18 @@ average.to_csv("Results/Average_Valdation_Results_for__"+ str(len(feature_list))
 
 
 
-# bestmodel = find_best_model(MAPE_4)
-# print(bestmodel)
-#
-# callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
-# bestmodel.fit(val_generator, epochs=60 ,  callbacks=[callback], verbose=1)
-#
-#
-# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
-#
-# finalresults=final_results(forecastf)
-#
-# finalresults.to_csv("Results\Final_Results_for_" +  str(len(feature_list)) +".csv", float_format="%.3f",index=True, header=True)
+bestmodel = find_best_model(MAPE_4)
+print(bestmodel)
+
+callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
+bestmodel.fit(val_generator, epochs=60 ,  callbacks=[callback], verbose=1)
+
+
+forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set )
+
+finalresults=final_results(forecastf)
+
+finalresults.to_csv("Results\Final_Results_for_" +  str(len(feature_list)) +".csv", float_format="%.3f",index=True, header=True)
 
 
 winsound.Beep(800, 300)
