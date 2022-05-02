@@ -134,7 +134,7 @@ def model_create( seq_size , features):
 
 def stacked_model_create(seq_size , features):
     model = Sequential()
-    model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))         #[20,18,59]
     model.add(LSTM(18, return_sequences=True))
     model.add(LSTM(59, return_sequences=False))
 
@@ -529,21 +529,27 @@ Greece_total = Greece_total.drop(admtitles, axis=1)
 Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
 
 total_cases_cor=pd.DataFrame()
-correlation_mat_p = Greece_total.corr()
+correlation_mat_p = Greece_total.corr() #Pearsons Correlation
 total_cases_cor['Pearson'] = correlation_mat_p['total_cases']
-correlation_mat_s = Greece_total.corr(method='spearman')
+correlation_mat_s = Greece_total.corr(method='spearman')#Spearman's Correlation
 
-correlation_mat_s = Greece_total.corr(method='spearman')
+
 total_cases_cor['Spearman'] = correlation_mat_s['total_cases']
+
 Spearman=total_cases_cor['Spearman']
 Spearman=Spearman[Spearman > 0.9]
 Spearman=Spearman.sort_values(ascending=False)
 Spearman=Spearman.index.to_list()
 
+Pearson=total_cases_cor['Pearson']
+Pearson=Pearson[Pearson > 0.9]
+Pearson=Pearson.sort_values(ascending=False)
+Pearson=Pearson.index.to_list()
+
 for i in range(len(ctrl)):
     control = ctrl[i]
     print(control)
-    cor=Spearman[:control]
+    cor=Pearson[:control]
 
     ## Combinations ###
     flist = list(combinations(cor , len(cor)))

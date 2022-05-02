@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+import winsound
 
 
 import tensorflow
@@ -129,7 +130,7 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 
 def model_create(nodes: object, seq_size: object, features: object) -> object:
     model = Sequential()
-    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -138,8 +139,8 @@ def model_create(nodes: object, seq_size: object, features: object) -> object:
 def stacked_model_create(seq_size , features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(LSTM(20, return_sequences=True))
-    model.add(LSTM(20, return_sequences=False))
+    model.add(LSTM(18, return_sequences=True))
+    model.add(LSTM(59, return_sequences=False))
 
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -224,11 +225,9 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
         total_cases_per_million = total_cases_per_million * 5.82583e-05
         new_cases_per_million = new_cases_per_million *0.00314326
         new_cases_smoothed_pre_million = new_cases_smoothed_pre_million * 0.00389804
-        
 
-        
-        
-        #Add New Day Values 
+
+        #Add New Day Values
         Featnames = ['total_cases','new_cases','new_cases_smoothed','total_cases_per_million','new_cases_per_million','new_cases_smoothed_per_million']
         featval = [total_cases,new_cases,new_cases_smoothed,total_cases_per_million,new_cases_per_million,new_cases_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
@@ -295,7 +294,7 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lrate):
     
-    experimentmodel = model_create( nodes, seq_size ,n_features)
+    experimentmodel = model_create(44, seq_size ,n_features)
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
@@ -580,16 +579,20 @@ MAPE_7days = []    #7 Days
 MAPE = []           #14 Days
 
 loc="owid-covid-data.csv"
-
+# loc="owid_dataset_fixed.csv"
+#
 Greece_total , titles =readdata(loc)
+# Greece_total=pd.read_csv(loc)
 
+# Remove  ICU *& Hospital Data from original Dataset
+# titles = Greece_total.columns
 flist = featcombos('cases', titles, combos)
 
 flist=flist*times
 
 flist=[ x for x in flist if "total_cases"  in x ] # Must always contain total cases/ cases 
-# flist=[ x for x in flist if "new_cases_smoothed"   in x ] ## Select pairs that i want to male a longterm prediction
-flist=[ x for x in flist if "new_cases_per_million"  in x ]
+flist=[ x for x in flist if "new_cases_smoothed"   in x ] ## Select pairs that i want to male a longterm prediction
+# flist=[ x for x in flist if "new_cases_per_million"  in x ]
 # flist=[ x for x in flist if "new_cases"  in x ]
 
 # flist=flist[:2]   ## Contorl length
@@ -655,7 +658,7 @@ metrics1 = metrics.groupby(['Feature 1','Feature 2' ]).mean()
 metrics.to_csv("Results/Valdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
 metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
 
-#####################################################################################################
+# #####################################################################################################
 bestmodel = find_best_model(MAPE_4)
 print(bestmodel)
 # #
@@ -672,3 +675,7 @@ forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, valid
 finalresults=final_results(forecastf)
 
 finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
+
+winsound.Beep(800, 300)
+winsound.Beep(800, 900)
+winsound.Beep(800, 300)

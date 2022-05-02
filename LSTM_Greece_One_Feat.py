@@ -3,6 +3,9 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
+import winsound
+
+
 import tensorflow
 from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 from tensorflow.keras.models import Sequential
@@ -148,8 +151,6 @@ def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
 def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
 
-
-
     # Forecast   Predict using a for loop
     index = inverseval.index
     predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
@@ -200,11 +201,9 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
     
     return total_forecast
 
-
-
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lr):
-    experimentmodel = stacked_model_create(nodes, seq_size ,n_features)
+    experimentmodel = model_create(nodes, seq_size ,n_features ,0.0001)
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
@@ -521,6 +520,8 @@ nodes = (18,20)
 
 
 location="owid-covid-data.csv"
+
+
 feature_list=["total_cases"]
 
 a=str(feature_list)
@@ -529,10 +530,10 @@ n_features = len(feature_list)
 seq_size = 3
 epochs = 60
 times = 10
-nodes=30
+nodes=44
 pname= 'Cases'
-lr=0.0001
-
+# lr=0.0001
+lr=0.001
 
 avep=[]
 Epochs = []
@@ -557,6 +558,7 @@ MAPE = []           #14 Days
 ##### Data  Creation #####
 
 dates,greece , Greece_total =createdata(location,feature_list)
+
 
 train_set, validation_set, test_set = split_data( greece, seq_size)
 
@@ -609,5 +611,8 @@ finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", fl
 
 
 
+winsound.Beep(800, 300)
+winsound.Beep(800, 900)
+winsound.Beep(800, 300)
 
 
