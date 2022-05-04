@@ -507,17 +507,19 @@ MAPE_3days = []    ## Days
 MAPE_7days = []    #7 Days
 MAPE = []           #14 Days
 loc="owid_dataset_fixed.csv"
+# loc="owid_dataset_weekly.csv"
 
 
 seq_size = 3
 epochs = 60
-times = 10
+times = 1
 pname= 'cases'
 ctrl=[2]#,3,4,5,6,7,8,9,10]
 
 
 ##### Data  Creation #####
 Greece_total=pd.read_csv(loc)
+
 
 # Remove  ICU *& Hospital Data from original Dataset
 titles = Greece_total.columns
