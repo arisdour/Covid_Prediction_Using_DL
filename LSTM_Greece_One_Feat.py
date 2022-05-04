@@ -86,7 +86,7 @@ def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.title('Predicted vs  Actual '  + pname + '  in Greece for ' +str(len(ypredict)) + ' days')
     plt.suptitle(predtype)
     plt.xlabel('Date')
-    plt.ylabel('Cases')
+    plt.ylabel('deaths')
     plt.legend()
     plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
     plt.show()
@@ -122,8 +122,8 @@ def model_create(nodes, seq_size , features,lr):
 def stacked_model_create(nodes, seq_size , features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(LSTM(20, return_sequences=True))
-    model.add(LSTM(20, return_sequences=False))
+    model.add(LSTM(18, return_sequences=True))
+    model.add(LSTM(59, return_sequences=False))
 
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
@@ -137,7 +137,7 @@ def model_train(i, model, traingenerator, valgenerator, ep):
     return model
 
 def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
-    earlystopping = callbacks.EarlyStopping(monitor ="val_loss", mode ="min", patience = 5, restore_best_weights = True)
+    earlystopping = callbacks.EarlyStopping(monitor ="val_loss", mode ="min", patience = 5 , restore_best_weights = True)
 
 
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep ,verbose=1,callbacks =[earlystopping])
@@ -180,17 +180,17 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
        
     forecast = predictiondata[-(future):] #Save results in a dataframe 
-    forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual Cases 
+    forecast = sc.inverse_transform(forecast)#Inverse Transform to get the actual deaths
     forecast = pd.DataFrame(forecast.round()) #Round results 
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs 
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1 ,ignore_index=True) #Concate the two dfs
 
     forecast=forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
 
 
 
-    predictN4 = sc.inverse_transform(predict1)#Inverse Transform to get the actual Cases
+    predictN4 = sc.inverse_transform(predict1)#Inverse Transform to get the actual deaths
     predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Prediction N4'}) #Round results
     # print(predictN4)
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
@@ -203,7 +203,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset ):
 
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lr):
-    experimentmodel = model_create(nodes, seq_size ,n_features ,0.0001)
+    experimentmodel = stacked_model_create(nodes, seq_size ,n_features)
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
@@ -522,7 +522,7 @@ nodes = (18,20)
 location="owid-covid-data.csv"
 
 
-feature_list=["total_cases"]
+feature_list=["total_deaths"]
 
 a=str(feature_list)
 n_features = len(feature_list)
@@ -530,10 +530,10 @@ n_features = len(feature_list)
 seq_size = 3
 epochs = 60
 times = 10
-nodes=44
-pname= 'Cases'
+nodes=30
+pname= 'deaths'
 # lr=0.0001
-lr=0.001
+lr=0.0001
 
 avep=[]
 Epochs = []
@@ -558,6 +558,7 @@ MAPE = []           #14 Days
 ##### Data  Creation #####
 
 dates,greece , Greece_total =createdata(location,feature_list)
+
 
 
 train_set, validation_set, test_set = split_data( greece, seq_size)
