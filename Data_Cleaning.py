@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import datetime
 def readdata(location):
     data = pd.read_csv(location)
     Greece = data[data.location == 'Greece'].reset_index(drop='True')
@@ -121,4 +122,36 @@ GreeceTests=GreeceTests.reset_index()
 
 Greece_total = Greece_total.merge(Greecevac,   how='left' , left_on='date', right_on='date')
 Greece_total = Greece_total.merge(GreeceTests,   how='left' , left_on='date', right_on='date')
-Greece_total.to_csv("owid_dataset_fixed" +".csv", float_format="%.3f",index=True, header=True)
+# Greece_total.to_csv("owid_dataset_fixed" +".csv", float_format="%.3f",index=True, header=True)
+
+
+
+
+
+
+
+
+# Greece_totalsum=Greece_total.groupby(Greece_total.index // 7).cumsum(axis=1)
+# s = pd.Series(range(5), index=pd.DatetimeIndex(Greece_total['date']))
+loc="owid_dataset_fixed.csv"
+Greece_total =pd.read_csv(loc)
+Greece_total=Greece_total.drop(columns=[ "Unnamed: 0"])
+date=Greece_total['date']
+
+Greece_total['date']= pd.to_datetime(Greece_total['date'])
+
+Greece_total=Greece_total.set_index(['date'] , drop = True)
+
+# Greece_total['dates']=date
+# Greece1=Greece_total['total_cases'].rolling(window='7D').sum()
+# # Greece2=Greece_total['total_cases'].rolling(3).sum()
+# Greeceweekly=Greece_total.rolling(window='7D').sum()
+
+# Test1=Greeceweekly.resample('W').sum()
+
+
+Greeceweekly=Greece_total.resample('W').sum()
+Greeceweekly=Greeceweekly.reset_index(drop=False)
+Greeceweekly['date']=Greeceweekly['date'].dt.strftime('%Y-%m-%d')
+Greeceweekly.to_csv("owid_dataset_weekly" +".csv", float_format="%.3f",index=True, header=True)
+
