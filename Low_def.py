@@ -127,7 +127,7 @@ def inversesets(sequence, feature_list, sc, trainset, validationset, testset, og
     return set1, set2, set3
 
 
-def model_create(seq_size, features):
+def model_create_mv(seq_size, features):
     model = Sequential()
     model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     # model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total Deaths
@@ -138,7 +138,7 @@ def model_create(seq_size, features):
     return model
 
 
-def stacked_model_create(seq_size, features):
+def stacked_model_create_mv(seq_size, features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))  # [20,18,59]
     model.add(LSTM(18, return_sequences=True))
@@ -148,7 +148,26 @@ def stacked_model_create(seq_size, features):
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
     return model
+def model_create_mf(nodes: object, seq_size: object, features: object) -> object:
+    opt = tensorflow.keras.optimizers.Adam(learning_rate=0.0005)
+    print(features)
+    model = Sequential()
+    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    model.add(Dense(1))
+    model.compile(optimizer=opt, loss='mean_squared_error')
+    model.summary()
+    return model
 
+def stacked_model_create_mf(seq_size , features):
+    model = Sequential()
+    model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
+    model.add(LSTM(18, return_sequences=True))
+    model.add(LSTM(59, return_sequences=False))
+
+    model.add(Dense(1))
+    model.compile(optimizer='Adam', loss='mean_squared_error')
+    model.summary()
+    return model
 
 def model_train(i, model, traingenerator, valgenerator, ep):
     history = model.fit(traingenerator, validation_data=valgenerator, epochs=ep, verbose=1)
@@ -168,7 +187,7 @@ def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
     return model
 
 
-def predict(model, sc, valgenerator, validation_set, inverseval, trainset , feat ,fl):
+def predict_mv(model, sc, valgenerator, validation_set, inverseval, trainset , feat ,fl):
     # Forecast   Predict using a for loop
     index = inverseval.index
     predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
@@ -217,6 +236,107 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset , feat
     return total_forecast
 
 
+def predict_mf(model, sc, valgenerator, validation_set, inverseval, trainset, feat, fl):
+    # Forecast   Predict using a for loop
+    index = inverseval.index
+    predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
+    predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
+
+    A=[	1492, 1482, 1323, 1372, 1222, 662] ## New cases
+    # [4.96948735e-07 4.67814371e-05 4.77805938e-05 5.17972453e-06, 4.87605554e-04 4.97714495e-04] Cases Scale
+
+
+    # A = [20, 17, 22, 21, 26, 23]  # New Deaths
+    # [0.00014925 0.00826446 0.00992908 0.00155568 0.08614006 0.10348753] Death Scale
+    newcasesprediction = pd.DataFrame(A)
+
+    current_batch = trainset[-seq_size:]
+    forecast = pd.DataFrame()
+
+    # Predict future, beyond test dates
+    future = len(validation_set) - seq_size  # Days
+    for i in range(future):  # instead of future
+
+        current_batch = predictiondata[i:seq_size + i]  # Create input for LSTM (Based on sequence size )
+        current_batch = current_batch.to_numpy()  # Input to array
+        current_batch = current_batch.reshape(1, seq_size, feat)  # Reshape
+
+        ### Prediction ##
+
+        current_pred = model.predict(current_batch)  # Make a prediction
+        total_cases = float(current_pred[0])  # Convert Prediction to integer
+        total_cases = total_cases / 4.96948735e-07  # De-scale
+
+        # ##### Create New Day Values #####
+
+        #### Total cases ####
+
+        total_cases_per_million = total_cases * 0.096  # Calculate Total Caces per million
+
+        #### New cases ####
+
+        new_cases = total_cases - (
+        predictiondata.iloc[len(predictiondata.index) - 1, 0]) / 4.96948735e-07  # Calculate  new casesDe-scaled
+
+        new_cases_per_million = new_cases * 0.096  # Calculate New per million
+
+        newcasesprediction.loc[len(newcasesprediction.index)] = [new_cases]  # append new cases
+        smoothednew = newcasesprediction.rolling(window=7).mean()
+        new_cases_smoothed = float(smoothednew.iloc[6 + i])
+
+        new_cases_smoothed_pre_million = new_cases_smoothed * 0.096  # Calculate Smoothed Permillion New cases
+
+        # Scale Back
+
+        total_cases = total_cases * 4.96948735e-07
+        new_cases = new_cases * 4.67814371e-05
+        new_cases_smoothed = new_cases_smoothed * 4.77805938e-05
+        total_cases_per_million = total_cases_per_million * 5.17972453e-06
+        new_cases_per_million = new_cases_per_million * 4.87605554e-04
+        new_cases_smoothed_pre_million = new_cases_smoothed_pre_million * 4.97714495e-04
+
+        # Add New Day Values
+        Featnames = ['total_cases', 'new_cases', 'new_cases_smoothed', 'total_cases_per_million',
+                     'new_cases_per_million', 'new_cases_smoothed_per_million']
+        featval = [total_cases, new_cases, new_cases_smoothed, total_cases_per_million, new_cases_per_million,
+                   new_cases_smoothed_pre_million]
+        dictionary = dict(zip(Featnames, featval))
+
+        usedval = [dictionary[fl[0]], dictionary[
+            fl[1]] , dictionary[fl[2]],dictionary[fl[3]]  ,dictionary[fl[4]]    , dictionary[fl[3]]  ]
+
+        predictiondata.loc[len(predictiondata.index)] = usedval
+
+    forecast = predictiondata[-(future):]  # Save results in a dataframe
+    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual cases
+    forecast = pd.DataFrame(forecast.round())  # Round results
+    forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
+
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1,
+                         ignore_index=True)  # Concate the two dfs
+
+    forecast = forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
+
+    ########################################################################################################################
+    # Prediction using Validation Generator
+    predict1 = model.predict(valgenerator)
+
+    predict1 = pd.DataFrame(predict1)
+    for i in range(len(fl)):
+        predict1[i] = predict1[0]
+    # print(predict1)
+
+    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual cases
+    # predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Normal Prediction'})  # Round results
+    predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Normal Prediction'})  # Round results
+    predictN4 = predictN4.set_index(index[seq_size:], 'Date')
+    # print(predictN4)
+
+    total_forecast = pd.concat([forecast, predictN4['Normal Prediction']], axis=1)  # , igonre_index=True)
+    # print(total_forecast)
+
+    return total_forecast
+
 def Hyper(parameter1, parameter2, parameter3, repetitions):
     hp1 = list(product(parameter1, parameter2))
     Hyperparameters = list(product(hp1, parameter3))
@@ -236,12 +356,19 @@ def Hyper(parameter1, parameter2, parameter3, repetitions):
 
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates, lrate,feature_list):
-    experimentmodel = model_create( seq_size ,n_features)
-    # experimentmodel = stacked_model_create(seq_size, n_features)  # stacked
-
+    #### Mulitvariate ####
+    # experimentmodel = model_create_mv( seq_size ,n_features)
+    # # experimentmodel = stacked_model_create_mv(seq_size, n_features)  # stacked
+    # experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    # forecast = predict_mv(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set,n_features ,feature_list)
+    #
+    
+    #### Multiple Features ####
+    experimentmodel = model_create_mf(nodes, seq_size, n_features)
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
-
-    forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set,n_features ,feature_list)
+    forecast = predict_mf(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set, n_features,feature_list)
+    
+    
     plotprediction(forecast, 0, str(i), pname, 'Prediction')
     # plotprediction(forecast, 2, str(i), pname, 'Normal Prediction')
 
@@ -518,6 +645,25 @@ def multivarflist (control , pname , corelation):
     print(flist)
     return flist
 
+def featcomb (pname ,title ,combinations ):
+    flist = featcombos(pname, title, combinations)
+    flist = flist * times
+
+    flist = [x for x in flist if "total_cases" in x]  # Must always contain total deaths/ cases
+    flist = [x for x in flist if "total_cases_per_million" in x]  ## Select pairs that i want to male a longterm prediction
+    # flist=flist[:2]   ## Contorl length
+    return flist
+
+
+def featcombos(featurename, titles, combin):
+    titles.str.contains(featurename)
+    features = titles[titles.str.contains(featurename)].to_list()
+    print(features)
+    feature_list = list(combinations(features, combin))
+
+    return feature_list
+
+
 def mainpipeline(alist):
     feature_list = alist[i]
     feature_list = list(itertools.chain(feature_list))
@@ -577,61 +723,48 @@ MAPE = []  # 14 Days
 loc = "owid_dataset_weekly.csv"
 
 seq_size = 3
-epochs = 150
-times = 2
+epochs = 60
+times = 10
 pname = 'cases'
+
+### Multivar Parameters ###
 ctrl = [2,3,4,5,6,7,8,9,10,11,12]
 ctrl = [2,3,4]
 
+#Multiple Feature Parameters
+combos=6
+
 ##### Data  Creation #####
 Greece_total = pd.read_csv(loc)
+titles=Greece_total.columns
 Pearson,Spearman =correlation(Greece_total , pname)
 dates = pd.DataFrame()
 
 
-for i in range(len(ctrl)):
-    flist=multivarflist(ctrl, pname , Pearson)
-
-    #######################################################################################################################
-    Greece_total = pd.read_csv(loc)
 
 
 
-    for i in range(len(flist)):
-        feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
-        # feature_list = flist[i]
-        # feature_list = list(itertools.chain(feature_list))
-        # feature_list.append('date')
-        # greece = Greece_total[feature_list]
-        # greece = greece.dropna(axis=0)
-        #
-        # dates['date'] = greece['date'].reset_index(drop=True)
-        # greece = greece.drop(columns=['date'])
-        #
-        # feature_list = (greece.columns).to_list()
-        # n_features = len(feature_list)
-        #
-        # train_set, validation_set, test_set = split_data(greece, seq_size)
-        # scaler = MinMaxScaler()
-        # scaler.fit(train_set)
-        #
-        # train_set = pd.DataFrame(scaler.transform(train_set))
-        # train_set = train_set.set_axis(feature_list, axis=1, inplace=False)
-        #
-        # validation_set = pd.DataFrame(scaler.transform(validation_set))
-        # validation_set = validation_set.set_axis(feature_list, axis=1, inplace=False)
-        #
-        # test_set = pd.DataFrame(scaler.transform(test_set))
-        # test_set = test_set.set_axis(feature_list, axis=1, inplace=False)
-        #
-        # train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
-        #                                                                 test_set)
-        #
-        # inv_train, inv_val, inv_test = inversesets(seq_size, feature_list, scaler, train_set, validation_set, test_set,
-        #                                            greece, dates)
-        #
-        # experiments(i, 0, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
-        #             train_set, inv_val, inv_test, dates, 0.0001)
+############################ Multivariate ############################  
+# for i in range(len(ctrl)):
+#     flist=multivarflist(ctrl, pname , Pearson)
+#     Greece_total = pd.read_csv(loc)
+#     for i in range(len(flist)):
+#         feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
+
+
+
+############################ Mutliple Features ######################  
+flist=featcomb(pname , titles , combos)
+for i in range(len(flist)):
+    feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
+
+
+
+##################################################################################################################################################
+##################################################################################################################################################
+##################################################################################################################################################
+
+
 
 metrics = pd.DataFrame(
     {'Feat': Features, 'MAE_4': MAE_4, 'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4,
@@ -646,13 +779,15 @@ metrics.to_csv("Results/Metrics_Valdation_Results_for_" + str(len(feature_list))
 average.to_csv("Results/Average_Valdation_Results_for__" + str(len(feature_list)) + ".csv", float_format="%.5f",
                index=True, header=True)
 
+
+
 # bestmodel = find_best_model(MAPE_4)
 # print(bestmodel)
 #
 # callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
 # bestmodel.fit(val_generator, epochs=60, callbacks=[callback], verbose=1)
 #
-# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features)
+# forecastf = predict_mv(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features)
 #
 # finalresults = final_results(forecastf)
 #

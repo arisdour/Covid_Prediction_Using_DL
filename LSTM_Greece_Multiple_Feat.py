@@ -294,7 +294,7 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lrate,feature_list):
-    print(n_features)
+
     experimentmodel = model_create(nodes, seq_size ,n_features)
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
@@ -350,6 +350,15 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
     MAPE.append(mape_4_n)
 
     return 
+
+def featcomb (pname ,title ,combinations ):
+    flist = featcombos(pname, title, combinations)
+    flist = flist * times
+
+    flist = [x for x in flist if "total_deaths" in x]  # Must always contain total deaths/ cases
+    flist = [x for x in flist if "total_deaths_per_million" in x]  ## Select pairs that i want to male a longterm prediction
+    # flist=flist[:2]   ## Contorl length
+    return flist
 
 def find_best_model(mape):
     mape = pd.DataFrame(mape)
@@ -621,17 +630,18 @@ Greece_total , titles =readdata(loc)
 # Greece_total=pd.read_csv(loc)
 dates = pd.DataFrame()
 
-# Remove  ICU *& Hospital Data from original Dataset
-# titles = Greece_total.columns
-flist = featcombos('deaths', titles, combos)
 
-flist=flist*times
 
-flist=[ x for x in flist if "total_deaths"  in x ] # Must always contain total deaths/ cases
-flist=[ x for x in flist if "total_deaths_per_million"   in x ] ## Select pairs that i want to male a longterm prediction
-# flist=flist[:2]   ## Contorl length
 
-    
+flist=featcomb(pname , titles , combos)
+# flist = featcombos('deaths', titles, combos)
+# flist=flist*times
+#
+# flist=[ x for x in flist if "total_deaths"  in x ] # Must always contain total deaths/ cases
+# flist=[ x for x in flist if "total_deaths_per_million"   in x ] ## Select pairs that i want to male a longterm prediction
+# # flist=flist[:2]   ## Contorl length
+
+
 for i in range(len(flist)):
     feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
     # feature_list= flist[i]
