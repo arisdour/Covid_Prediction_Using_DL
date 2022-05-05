@@ -129,7 +129,7 @@ Greece_total = Greece_total.merge(GreeceTests,   how='left' , left_on='date', ri
 
 
 
-
+import pandas as pd
 
 # Greece_totalsum=Greece_total.groupby(Greece_total.index // 7).cumsum(axis=1)
 # s = pd.Series(range(5), index=pd.DatetimeIndex(Greece_total['date']))
