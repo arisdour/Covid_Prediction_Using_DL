@@ -141,29 +141,28 @@ def model_create_mv(seq_size, features):
 def stacked_model_create_mv(seq_size, features):
     model = Sequential()
     model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))  # [20,18,59]
-    model.add(LSTM(18, return_sequences=True))
-    model.add(LSTM(59, return_sequences=False))
+    model.add(LSTM(20, return_sequences=True))
+    model.add(LSTM(20, return_sequences=False))
 
-    model.add(Dense(n_features))
+    model.add(Dense(features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
     return model
+
 def model_create_mf(nodes: object, seq_size: object, features: object) -> object:
-    opt = tensorflow.keras.optimizers.Adam(learning_rate=0.0005)
-    print(features)
+
     model = Sequential()
     model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
-    model.compile(optimizer=opt, loss='mean_squared_error')
+    model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
     return model
 
 def stacked_model_create_mf(seq_size , features):
     model = Sequential()
-    model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features)))
-    model.add(LSTM(18, return_sequences=True))
-    model.add(LSTM(59, return_sequences=False))
-
+    model.add(LSTM(20, activation='relu', return_sequences=True, input_shape=(seq_size, features))) #[20 18 59]
+    model.add(LSTM(20, return_sequences=True))
+    model.add(LSTM(20, return_sequences=False))
     model.add(Dense(1))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -302,8 +301,7 @@ def predict_mf(model, sc, valgenerator, validation_set, inverseval, trainset, fe
                    new_cases_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
 
-        usedval = [dictionary[fl[0]], dictionary[
-            fl[1]] , dictionary[fl[2]],dictionary[fl[3]]  ,dictionary[fl[4]]    , dictionary[fl[3]]  ]
+        usedval = [dictionary[fl[0]], dictionary[fl[1]] ]# , dictionary[fl[2]]  ] #,dictionary[fl[3]] ] #  ,dictionary[fl[4]]    , dictionary[fl[3]]  ]
 
         predictiondata.loc[len(predictiondata.index)] = usedval
 
@@ -404,21 +402,21 @@ def Hyper(parameter1, parameter2, parameter3, repetitions):
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates, lrate,feature_list):
     #### Mulitvariate ####
-    # experimentmodel = model_create_mv( seq_size ,n_features)
-    # # experimentmodel = stacked_model_create_mv(seq_size, n_features)  # stacked
-    # experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
-    # forecast = predict_mv(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set,n_features ,feature_list)
+    experimentmodel = model_create_mv( seq_size ,n_features)
+    # experimentmodel = stacked_model_create_mv(seq_size, n_features)  # stacked
+    experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    forecast = predict_mv(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set,n_features ,feature_list)
 
     
-    #### Multiple Features ####
-    # experimentmodel = model_create_mf(nodes, seq_size, n_features)
+    ### Multiple Features ####
+    # experimentmodel = stacked_model_create_mf(seq_size, n_features)
     # experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
     # forecast = predict_mf(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set, n_features,feature_list)
 
-    #### One Features ####
-    experimentmodel = model_create_mf(nodes, seq_size, n_features)
-    experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
-    forecast = predict_of(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set, n_features,feature_list)
+    # #### One Features ####
+    # experimentmodel = stacked_model_create_mf(seq_size, n_features)
+    # experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    # forecast = predict_of(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set, n_features,feature_list)
 
     plotprediction(forecast, 0, str(i), pname, 'Prediction')
     # plotprediction(forecast, 2, str(i), pname, 'Normal Prediction')
@@ -779,11 +777,11 @@ times = 10
 pname = 'cases'
 
 ### Multivar Parameters ###
-ctrl = [2,3,4,5,6,7,8,9,10,11,12]
-ctrl = [2] #,3,4]
+ctrl = [2,3,4,5,6,7,8,9,10]
+ctrl = [4] #,3,4]
 
 #Multiple Feature Parameters
-combos=6
+combos=2
 
 ##### Data  Creation #####
 Greece_total = pd.read_csv(loc)
@@ -796,13 +794,13 @@ dates = pd.DataFrame()
 
 
 ############################ Multivariate ############################  
-# for i in range(len(ctrl)):
-#     flist=multivarflist(ctrl, pname , Pearson)
-#     Greece_total = pd.read_csv(loc)
-#     for i in range(len(flist)):
-#         feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
+for i in range(len(ctrl)):
+    flist=multivarflist(ctrl, pname , Pearson)
+    Greece_total = pd.read_csv(loc)
+    for i in range(len(flist)):
+        feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
 
-
+#####################################################################
 
 ############################ Mutliple Features ######################  
 # flist=featcomb(pname , titles , combos)
@@ -812,12 +810,12 @@ dates = pd.DataFrame()
 
 
 ############################ One Feature ######################
-flist=[['total_cases']]
-flist=flist*times
-for i in range(len(flist)):
-    feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
+# flist=[['total_cases']]
+# flist=flist*times
+# for i in range(len(flist)):
+#     feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
 
-
+#####################################################################
 
 # # #Save Results
 metrics = pd.DataFrame(
@@ -834,23 +832,22 @@ average.to_csv("Results/Average_Valdation_Results_for__" + str(len(feature_list)
 bestmodel = find_best_model(MAPE_4)
 print(bestmodel)
 
-callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
+callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=3)
 bestmodel.fit(val_generator, epochs=60, callbacks=[callback], verbose=1)
 
 #Multivariate
-# forecastf = predict_mv(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
-
+forecastf = predict_mv(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
+#
 #Multiple Features
 # forecastf = predict_mf(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
+#Ονε Features
+# forecastf = predict_of(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
 
-forecastf = predict_of(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
 
-
-### Save Test Set_Performance ####
+## Save Test Set_Performance ####
 finalresults = final_results(forecastf)
 
-finalresults.to_csv("Results\Final_Results_for_" + str(len(feature_list)) + ".csv", float_format="%.3f", index=True,
-                    header=True)
+finalresults.to_csv("Results\Final_Results_for_" + str(len(feature_list)) + ".csv", float_format="%.3f", index=True,header=True)
 
 winsound.Beep(800, 300)
 winsound.Beep(800, 900)
