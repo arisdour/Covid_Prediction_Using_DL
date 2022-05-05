@@ -520,8 +520,6 @@ nodes = (18,20)
 
 
 location="owid-covid-data.csv"
-
-
 feature_list=["total_deaths"]
 
 a=str(feature_list)

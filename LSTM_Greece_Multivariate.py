@@ -528,6 +528,7 @@ admtitles = titles[titles.str.contains('adm')].to_list()
 Greece_total = Greece_total.drop(admtitles, axis=1)
 
 #######################################################################################################################
+# Greece_total=Greece_total.drop(columns=['date'])
 Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
 
 total_cases_cor=pd.DataFrame()
