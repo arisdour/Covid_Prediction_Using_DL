@@ -44,9 +44,9 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 def split_data(data, sequence):
 
-    train_set = data[:59].reset_index(drop=True)
-    validation_set = data[59 - sequence:63].reset_index(drop=True)
-    test_set = data[63 - sequence:].reset_index(drop=True)
+    train_set = data[:58].reset_index(drop=True)
+    validation_set = data[58 - sequence:62].reset_index(drop=True)
+    test_set = data[62- sequence:70].reset_index(drop=True)
 
     return train_set, validation_set, test_set
 
@@ -337,6 +337,53 @@ def predict_mf(model, sc, valgenerator, validation_set, inverseval, trainset, fe
 
     return total_forecast
 
+
+def predict_of(model, sc, valgenerator, validation_set, inverseval, trainset, feat,fl):
+    # Forecast   Predict using a for loop
+    index = inverseval.index
+    predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
+    predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
+    current_batch = trainset[-seq_size:]
+    forecast = pd.DataFrame()
+
+    # Prediction using Validation Generator
+    predict1 = model.predict(valgenerator)
+
+    # Predict future, beyond test dates
+    future = len(validation_set) - seq_size  # Days
+    for i in range(future):
+        current_batch = predictiondata[i:seq_size + i]  # Create input for LSTM (Based on sequence size )
+
+        current_batch = current_batch.to_numpy()  # Input to array
+
+        current_batch = current_batch.reshape(1, seq_size, feat)  # Reshape
+
+        ### Prediction ##
+
+        current_pred = model.predict(current_batch)  # Make a prediction
+        current_pred = float(current_pred[0])  # Convert Prediction to integer
+        predictiondata.loc[len(predictiondata.index)] = [current_pred]
+
+    forecast = predictiondata[-(future):]  # Save results in a dataframe
+    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual deaths
+    forecast = pd.DataFrame(forecast.round())  # Round results
+    forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
+
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1,
+                         ignore_index=True)  # Concate the two dfs
+
+    forecast = forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
+
+    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual deaths
+    predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Normal Prediction'})  # Round results
+    # print(predictN4)
+    predictN4 = predictN4.set_index(index[seq_size:], 'Date')
+
+    total_forecast = pd.concat([forecast, predictN4], axis=1)  # , igonre_index=True)
+    # print(total_forecast)
+
+    return total_forecast
+
 def Hyper(parameter1, parameter2, parameter3, repetitions):
     hp1 = list(product(parameter1, parameter2))
     Hyperparameters = list(product(hp1, parameter3))
@@ -361,14 +408,18 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
     # # experimentmodel = stacked_model_create_mv(seq_size, n_features)  # stacked
     # experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
     # forecast = predict_mv(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set,n_features ,feature_list)
-    #
+
     
     #### Multiple Features ####
+    # experimentmodel = model_create_mf(nodes, seq_size, n_features)
+    # experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    # forecast = predict_mf(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set, n_features,feature_list)
+
+    #### One Features ####
     experimentmodel = model_create_mf(nodes, seq_size, n_features)
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
-    forecast = predict_mf(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set, n_features,feature_list)
-    
-    
+    forecast = predict_of(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set, n_features,feature_list)
+
     plotprediction(forecast, 0, str(i), pname, 'Prediction')
     # plotprediction(forecast, 2, str(i), pname, 'Normal Prediction')
 
@@ -571,19 +622,19 @@ def final_results(dataframe):
     Comp1 = []
     Comp2 = []
 
-    mape_9_Days = mean_absolute_percentage_error(dataframe['Actual'][:9], dataframe['Prediction'][:9])
+    mape_9_Days = mean_absolute_percentage_error(dataframe['Actual'][:1], dataframe['Prediction'][:1])
     mape_9_Days = float("{:.3f}".format(mape_9_Days))
     Comp1.append(mape_9_Days)
 
-    mape_9_Days = mean_absolute_percentage_error(dataframe['Actual'][:9], dataframe['Normal Prediction'][:9])
+    mape_9_Days = mean_absolute_percentage_error(dataframe['Actual'][:1], dataframe['Normal Prediction'][:1])
     mape_9_Days = float("{:.3f}".format(mape_9_Days))
     Comp1.append(mape_9_Days)
 
-    mape_40_Days = mean_absolute_percentage_error(dataframe['Actual'][:40], dataframe['Prediction'][:40])
+    mape_40_Days = mean_absolute_percentage_error(dataframe['Actual'][:6], dataframe['Prediction'][:6])
     mape_40_Days = float("{:.3f}".format(mape_40_Days))
     Comp2.append(mape_40_Days)
 
-    mape_40_Days = mean_absolute_percentage_error(dataframe['Actual'][:40], dataframe['Normal Prediction'][:40])
+    mape_40_Days = mean_absolute_percentage_error(dataframe['Actual'][:6], dataframe['Normal Prediction'][:6])
     mape_40_Days = float("{:.3f}".format(mape_40_Days))
     Comp2.append(mape_40_Days)
 
@@ -729,7 +780,7 @@ pname = 'cases'
 
 ### Multivar Parameters ###
 ctrl = [2,3,4,5,6,7,8,9,10,11,12]
-ctrl = [2,3,4]
+ctrl = [2] #,3,4]
 
 #Multiple Feature Parameters
 combos=6
@@ -754,45 +805,52 @@ dates = pd.DataFrame()
 
 
 ############################ Mutliple Features ######################  
-flist=featcomb(pname , titles , combos)
+# flist=featcomb(pname , titles , combos)
+# for i in range(len(flist)):
+#     feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
+#####################################################################
+
+
+############################ One Feature ######################
+flist=[['total_cases']]
+flist=flist*times
 for i in range(len(flist)):
     feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
 
 
 
-##################################################################################################################################################
-##################################################################################################################################################
-##################################################################################################################################################
-
-
-
+# # #Save Results
 metrics = pd.DataFrame(
     {'Feat': Features, 'MAE_4': MAE_4, 'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4,
       'MAPE 7 days': MAPE_7days, 'MAPE': MAPE,
      'MSE_4': MSE_4, 'RMSE_4': RMSE_4})
 
 average = metrics.groupby(metrics['Feat'].map(tuple)).mean()
-
-# # #Save Results
-metrics.to_csv("Results/Metrics_Valdation_Results_for_" + str(len(feature_list)) + ".csv", float_format="%.5f",
-               index=True, header=True)
-average.to_csv("Results/Average_Valdation_Results_for__" + str(len(feature_list)) + ".csv", float_format="%.5f",
-               index=True, header=True)
+metrics.to_csv("Results/Metrics_Valdation_Results_for_" + str(len(feature_list)) + ".csv", float_format="%.5f",index=True, header=True)
+average.to_csv("Results/Average_Valdation_Results_for__" + str(len(feature_list)) + ".csv", float_format="%.5f",index=True, header=True)
 
 
 
-# bestmodel = find_best_model(MAPE_4)
-# print(bestmodel)
-#
-# callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
-# bestmodel.fit(val_generator, epochs=60, callbacks=[callback], verbose=1)
-#
-# forecastf = predict_mv(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features)
-#
-# finalresults = final_results(forecastf)
-#
-# finalresults.to_csv("Results\Final_Results_for_" + str(len(feature_list)) + ".csv", float_format="%.3f", index=True,
-#                     header=True)
+bestmodel = find_best_model(MAPE_4)
+print(bestmodel)
+
+callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
+bestmodel.fit(val_generator, epochs=60, callbacks=[callback], verbose=1)
+
+#Multivariate
+# forecastf = predict_mv(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
+
+#Multiple Features
+# forecastf = predict_mf(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
+
+forecastf = predict_of(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
+
+
+### Save Test Set_Performance ####
+finalresults = final_results(forecastf)
+
+finalresults.to_csv("Results\Final_Results_for_" + str(len(feature_list)) + ".csv", float_format="%.3f", index=True,
+                    header=True)
 
 winsound.Beep(800, 300)
 winsound.Beep(800, 900)
