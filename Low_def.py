@@ -132,7 +132,7 @@ def model_create(seq_size, features):
     model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     # model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total Deaths
 
-    model.add(Dense(n_features))
+    model.add(Dense(features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
     return model
@@ -168,7 +168,7 @@ def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
     return model
 
 
-def predict(model, sc, valgenerator, validation_set, inverseval, trainset):
+def predict(model, sc, valgenerator, validation_set, inverseval, trainset , feat ,fl):
     # Forecast   Predict using a for loop
     index = inverseval.index
     predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
@@ -187,7 +187,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset):
 
         current_batch = current_batch.to_numpy()  # Input to array
 
-        current_batch = current_batch.reshape(1, seq_size, n_features)  # Reshape
+        current_batch = current_batch.reshape(1, seq_size, feat)  # Reshape
 
         ### Prediction ##
 
@@ -235,13 +235,13 @@ def Hyper(parameter1, parameter2, parameter3, repetitions):
 
 
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
-                train_set, inv_val, inv_test, dates, lrate):
+                train_set, inv_val, inv_test, dates, lrate,feature_list):
     experimentmodel = model_create( seq_size ,n_features)
     # experimentmodel = stacked_model_create(seq_size, n_features)  # stacked
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
-    forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set)
+    forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set,n_features ,feature_list)
     plotprediction(forecast, 0, str(i), pname, 'Prediction')
     # plotprediction(forecast, 2, str(i), pname, 'Normal Prediction')
 
@@ -474,6 +474,86 @@ def final_results(dataframe):
     finalresults = finalresults.set_index(['NAMES'])
     return finalresults
 
+def correlation(df , name):
+    Greece_total = df.drop(columns=['date'])
+    # Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
+
+    total_cases_cor = pd.DataFrame()
+    correlation_mat_p = Greece_total.corr()  # Pearsons Correlation
+    total_cases_cor['Pearson'] = correlation_mat_p['total_'+ name]
+    correlation_mat_s = Greece_total.corr(method='spearman')  # Spearman's Correlation
+
+    total_cases_cor['Spearman'] = correlation_mat_s['total_'+ name]
+
+    Spearman = total_cases_cor['Spearman']
+    Spearman = Spearman[Spearman > 0.9]
+    Spearman = Spearman.sort_values(ascending=False)
+    Spearman = Spearman.index.to_list()
+
+    Pearson = total_cases_cor['Pearson']
+    Pearson = Pearson[Pearson > 0.9]
+    Pearson = Pearson.sort_values(ascending=False)
+    Pearson = Pearson.index.to_list()
+
+    cor =['total_'+ name]
+    return Pearson , Spearman
+
+def multivarflist (control , pname , corelation):
+    control = ctrl[i]
+    print(control)
+    cor = corelation[:control]
+    a, b = cor.index('total_cases_per_million'), cor.index('total_cases')
+    cor[b], cor[a] = cor[a], cor[b]
+
+    ## Combinations ###
+    flist = list(combinations(cor, len(cor)))
+    # flist=cor[0]
+    flist = [x for x in flist if "total_" + pname in x]  # Must always contain total deaths/ cases
+    flist = flist * times
+    ## Control length
+    flist = sorted(flist)
+    # flist=flist[:ctrl]
+    # flist=Spearman
+
+    print(flist)
+    return flist
+
+def mainpipeline(alist):
+    feature_list = alist[i]
+    feature_list = list(itertools.chain(feature_list))
+    feature_list.append('date')
+    greece = Greece_total[feature_list]
+    greece = greece.dropna(axis=0)
+
+    dates['date'] = greece['date'].reset_index(drop=True)
+    greece = greece.drop(columns=['date'])
+
+    feature_list = (greece.columns).to_list()
+    n_features = len(feature_list)
+
+    train_set, validation_set, test_set = split_data(greece, seq_size)
+    scaler = MinMaxScaler()
+    scaler.fit(train_set)
+
+    train_set = pd.DataFrame(scaler.transform(train_set))
+    train_set = train_set.set_axis(feature_list, axis=1, inplace=False)
+
+    validation_set = pd.DataFrame(scaler.transform(validation_set))
+    validation_set = validation_set.set_axis(feature_list, axis=1, inplace=False)
+
+    test_set = pd.DataFrame(scaler.transform(test_set))
+    test_set = test_set.set_axis(feature_list, axis=1, inplace=False)
+
+    train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
+                                                                    test_set)
+
+    inv_train, inv_val, inv_test = inversesets(seq_size, feature_list, scaler, train_set, validation_set, test_set,
+                                               greece, dates)
+
+    experiments(i, 0, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
+                train_set, inv_val, inv_test, dates, 0.0001,feature_list)
+    return feature_list,val_generator , scaler, test_generator, test_set, inv_test, validation_set,n_features
+
 
 ##########################  MAIN ##############################################
 
@@ -498,91 +578,60 @@ loc = "owid_dataset_weekly.csv"
 
 seq_size = 3
 epochs = 150
-times = 10
+times = 2
 pname = 'cases'
 ctrl = [2,3,4,5,6,7,8,9,10,11,12]
-ctrl = [2]
+ctrl = [2,3,4]
 
 ##### Data  Creation #####
 Greece_total = pd.read_csv(loc)
+Pearson,Spearman =correlation(Greece_total , pname)
+dates = pd.DataFrame()
 
-#######################################################################################################################
-Greece_total = Greece_total.drop(columns=['date'])
-# Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
 
-total_cases_cor = pd.DataFrame()
-correlation_mat_p = Greece_total.corr()  # Pearsons Correlation
-total_cases_cor['Pearson'] = correlation_mat_p['total_cases']
-correlation_mat_s = Greece_total.corr(method='spearman')  # Spearman's Correlation
-
-total_cases_cor['Spearman'] = correlation_mat_s['total_cases']
-
-Spearman = total_cases_cor['Spearman']
-Spearman = Spearman[Spearman > 0.9]
-Spearman = Spearman.sort_values(ascending=False)
-Spearman = Spearman.index.to_list()
-
-Pearson = total_cases_cor['Pearson']
-Pearson = Pearson[Pearson > 0.9]
-Pearson = Pearson.sort_values(ascending=False)
-Pearson = Pearson.index.to_list()
-
-cor =['total_cases']
 for i in range(len(ctrl)):
-    control = ctrl[i]
-    print(control)
-    cor = Pearson[:control]
-    a, b = cor.index('total_cases_per_million'), cor.index('total_cases')
-    cor[b], cor[a] = cor[a], cor[b]
+    flist=multivarflist(ctrl, pname , Pearson)
 
-    ## Combinations ###
-    flist = list(combinations(cor, len(cor)))
-    # flist=cor[0]
-    flist = [x for x in flist if "total_" + pname in x]  # Must always contain total deaths/ cases
-    flist = flist * times
-    ## Control length
-    flist = sorted(flist)
-    # flist=flist[:ctrl]
-    # flist=Spearman
-    dates = pd.DataFrame()
-    print(flist)
     #######################################################################################################################
     Greece_total = pd.read_csv(loc)
 
+
+
     for i in range(len(flist)):
-        feature_list = flist[i]
-        feature_list = list(itertools.chain(feature_list))
-        feature_list.append('date')
-        greece = Greece_total[feature_list]
-        greece = greece.dropna(axis=0)
-
-        dates['date'] = greece['date'].reset_index(drop=True)
-        greece = greece.drop(columns=['date'])
-
-        feature_list = (greece.columns).to_list()
-        n_features = len(feature_list)
-
-        train_set, validation_set, test_set = split_data(greece, seq_size)
-        scaler = MinMaxScaler()
-        scaler.fit(train_set)
-
-        train_set = pd.DataFrame(scaler.transform(train_set))
-        train_set = train_set.set_axis(feature_list, axis=1, inplace=False)
-
-        validation_set = pd.DataFrame(scaler.transform(validation_set))
-        validation_set = validation_set.set_axis(feature_list, axis=1, inplace=False)
-
-        test_set = pd.DataFrame(scaler.transform(test_set))
-        test_set = test_set.set_axis(feature_list, axis=1, inplace=False)
-
-        train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
-                                                                        test_set)
-
-        inv_train, inv_val, inv_test = inversesets(seq_size, feature_list, scaler, train_set, validation_set, test_set,
-                                                   greece, dates)
-
-        experiments(i, 0, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
-                    train_set, inv_val, inv_test, dates, 0.0001)
+        feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
+        # feature_list = flist[i]
+        # feature_list = list(itertools.chain(feature_list))
+        # feature_list.append('date')
+        # greece = Greece_total[feature_list]
+        # greece = greece.dropna(axis=0)
+        #
+        # dates['date'] = greece['date'].reset_index(drop=True)
+        # greece = greece.drop(columns=['date'])
+        #
+        # feature_list = (greece.columns).to_list()
+        # n_features = len(feature_list)
+        #
+        # train_set, validation_set, test_set = split_data(greece, seq_size)
+        # scaler = MinMaxScaler()
+        # scaler.fit(train_set)
+        #
+        # train_set = pd.DataFrame(scaler.transform(train_set))
+        # train_set = train_set.set_axis(feature_list, axis=1, inplace=False)
+        #
+        # validation_set = pd.DataFrame(scaler.transform(validation_set))
+        # validation_set = validation_set.set_axis(feature_list, axis=1, inplace=False)
+        #
+        # test_set = pd.DataFrame(scaler.transform(test_set))
+        # test_set = test_set.set_axis(feature_list, axis=1, inplace=False)
+        #
+        # train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
+        #                                                                 test_set)
+        #
+        # inv_train, inv_val, inv_test = inversesets(seq_size, feature_list, scaler, train_set, validation_set, test_set,
+        #                                            greece, dates)
+        #
+        # experiments(i, 0, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
+        #             train_set, inv_val, inv_test, dates, 0.0001)
 
 metrics = pd.DataFrame(
     {'Feat': Features, 'MAE_4': MAE_4, 'MAPE_4 7 days': MAPE_4_7days, 'MAPE_4': MAPE_4,
@@ -603,7 +652,7 @@ average.to_csv("Results/Average_Valdation_Results_for__" + str(len(feature_list)
 # callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
 # bestmodel.fit(val_generator, epochs=60, callbacks=[callback], verbose=1)
 #
-# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set)
+# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features)
 #
 # finalresults = final_results(forecastf)
 #

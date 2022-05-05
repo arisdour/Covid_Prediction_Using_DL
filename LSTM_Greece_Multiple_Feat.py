@@ -130,9 +130,9 @@ def inversesets(sequence,feature_list, sc, trainset, validationset, testset, ogd
 
 def model_create(nodes: object, seq_size: object, features: object) -> object:
     opt = tensorflow.keras.optimizers.Adam(learning_rate=0.0005)
-
+    print(features)
     model = Sequential()
-    model.add(LSTM(nodes, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
+    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
     model.add(Dense(1))
     model.compile(optimizer=opt, loss='mean_squared_error')
     model.summary()
@@ -164,7 +164,7 @@ def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
     # avep.append( len(history.history['loss']))
     return model
 
-def predict(model, sc, valgenerator, validation_set, inverseval, trainset,n_features, feature_list):
+def predict(model, sc, valgenerator, validation_set, inverseval, trainset,feat,fl ):
 
 
     # Forecast   Predict using a for loop
@@ -188,7 +188,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset,n_feat
         
         current_batch = predictiondata[i:seq_size + i] #Create input for LSTM (Based on sequence size )
         current_batch = current_batch.to_numpy()  #Input to array 
-        current_batch = current_batch.reshape(1, seq_size, n_features)  # Reshape
+        current_batch = current_batch.reshape(1, seq_size, feat)  # Reshape
 
         ### Prediction ##
         
@@ -233,7 +233,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset,n_feat
         featval = [total_deaths,new_deaths,new_deaths_smoothed,total_deaths_per_million,new_deaths_per_million,new_deaths_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
 
-        usedval =[ dictionary[feature_list[0]] , dictionary[feature_list[1]] ] #  , dictionary[feature_list[2]] ] #,dictionary[feature_list[3]]  , dictionary[feature_list[4]] ] #    , dictionary[feature_list[3]]  ]
+        usedval =[ dictionary[fl[0]] , dictionary[fl[1]] ] #  , dictionary[fl[2]] ] #,dictionary[fl[3]]  , dictionary[fl[4]] ] #    , dictionary[fl[3]]  ]
 
 
         
@@ -258,7 +258,7 @@ def predict(model, sc, valgenerator, validation_set, inverseval, trainset,n_feat
 
 
     predict1=pd.DataFrame(predict1)
-    for i in range (len(feature_list)):
+    for i in range (len(fl)):
         predict1[i] = predict1[0]
     # print(predict1)
 
@@ -294,12 +294,12 @@ def Hyper(parameter1 , parameter2 , parameter3 , repetitions):
 
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates ,lrate,feature_list):
-    
+    print(n_features)
     experimentmodel = model_create(nodes, seq_size ,n_features)
 
     experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
 
-    forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set,n_features,feature_list)
+    forecast = predict(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set,n_features,feature_list )
     plotprediction(forecast, 0, str(i), pname, 'For Loop Prediction')
     plotprediction(forecast, 2, str(i), pname, 'Normal Prediction')
     
@@ -547,53 +547,50 @@ def final_results(dataframe):
     finalresults=finalresults.set_index(['NAMES'])
     return finalresults
 
-def multiplefeature_experiments(a):
-
-    for i in range(len(a)):
-        feature_list= a[i]
-
-        feature_list = list(itertools.chain(feature_list))
-        n_features = len(feature_list)
-
-        Greece_total['new_cases_smoothed']= Greece_total['new_cases'].rolling(window=7).mean()
-        Greece_total['new_deaths_smoothed']= Greece_total['new_deaths'].rolling(window=7).mean()
-
-        Greece_total['new_cases_smoothed_per_million']= Greece_total['new_cases_smoothed']*0.096
-        Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
-
-
-        dates,greece = createdata(Greece_total ,feature_list )
-
-        train_set, validation_set, test_set = split_data( greece, seq_size)
-
-        #Scaling
-        scaler = MinMaxScaler()
-        scaler.fit(train_set)
-
-        train_set=pd.DataFrame(scaler.transform(train_set))
-        train_set=train_set.set_axis(feature_list, axis=1, inplace=False)
-
-        validation_set=pd.DataFrame(scaler.transform(validation_set))
-        validation_set=validation_set.set_axis(feature_list, axis=1, inplace=False)
-
-        test_set=pd.DataFrame(scaler.transform(test_set))
-        test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
-
-        train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
-                                                                        test_set)
-        inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,
-                                                dates)
-
-
-        experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
-                          validation_set, train_set, inv_val, inv_test, dates , 0.0001 ,feature_list)
-
-    return val_generator,scaler, test_generator, test_set, inv_test, validation_set ,feature_list,n_features
-
+def mainpipeline(alist):
+    feature_list = alist[i]
+    feature_list = list(itertools.chain(feature_list))
+    feature_list.append('date')
+    greece = Greece_total[feature_list]
+    greece = greece.dropna(axis=0)
+    
+    dates['date'] = greece['date'].reset_index(drop=True)
+    greece = greece.drop(columns=['date'])
+    
+    feature_list = (greece.columns).to_list()
+    n_features = len(feature_list)
+    
+    train_set, validation_set, test_set = split_data(greece, seq_size)
+    scaler = MinMaxScaler()
+    scaler.fit(train_set)
+    
+    train_set = pd.DataFrame(scaler.transform(train_set))
+    train_set = train_set.set_axis(feature_list, axis=1, inplace=False)
+    
+    validation_set = pd.DataFrame(scaler.transform(validation_set))
+    validation_set = validation_set.set_axis(feature_list, axis=1, inplace=False)
+    
+    test_set = pd.DataFrame(scaler.transform(test_set))
+    test_set = test_set.set_axis(feature_list, axis=1, inplace=False)
+    
+    train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
+                                                                    test_set)
+    
+    inv_train, inv_val, inv_test = inversesets(seq_size, feature_list, scaler, train_set, validation_set, test_set,
+                                               greece, dates)
+    
+    experiments(i, 0, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
+                train_set, inv_val, inv_test, dates, 0.0001,feature_list)
+    return feature_list,val_generator , scaler, test_generator, test_set, inv_test, validation_set,n_features
 ##########################  MAIN ##############################################
 
+
+
+
+
+# Sigle Layer Parameters 
 seq_size = 3
-times =2
+times =10
 combos =2
 epochs=60
 nodes = 30
@@ -622,17 +619,62 @@ loc="owid-covid-data.csv"
 #
 Greece_total , titles =readdata(loc)
 # Greece_total=pd.read_csv(loc)
+dates = pd.DataFrame()
 
-
+# Remove  ICU *& Hospital Data from original Dataset
+# titles = Greece_total.columns
 flist = featcombos('deaths', titles, combos)
+
 flist=flist*times
+
 flist=[ x for x in flist if "total_deaths"  in x ] # Must always contain total deaths/ cases
 flist=[ x for x in flist if "total_deaths_per_million"   in x ] ## Select pairs that i want to male a longterm prediction
 # flist=flist[:2]   ## Contorl length
 
+    
+for i in range(len(flist)):
+    feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
+    # feature_list= flist[i]
+    #
+    # feature_list = list(itertools.chain(feature_list))
+    # n_features = len(feature_list)
+    #
+    # Greece_total['new_cases_smoothed']= Greece_total['new_cases'].rolling(window=7).mean()
+    # Greece_total['new_deaths_smoothed']= Greece_total['new_deaths'].rolling(window=7).mean()
+    #
+    # Greece_total['new_cases_smoothed_per_million']= Greece_total['new_cases_smoothed']*0.096
+    # Greece_total['new_deaths_smoothed_per_million']= Greece_total['new_deaths_smoothed']*0.096
+    #
+    #
+    # dates,greece = createdata(Greece_total ,feature_list )
+    #
+    # train_set, validation_set, test_set = split_data( greece, seq_size)
+    #
+    # #Scaling
+    # scaler = MinMaxScaler()
+    # scaler.fit(train_set)
+    #
+    # train_set=pd.DataFrame(scaler.transform(train_set))
+    # train_set=train_set.set_axis(feature_list, axis=1, inplace=False)
+    #
+    # validation_set=pd.DataFrame(scaler.transform(validation_set))
+    # validation_set=validation_set.set_axis(feature_list, axis=1, inplace=False)
+    #
+    # test_set=pd.DataFrame(scaler.transform(test_set))
+    # test_set=test_set.set_axis(feature_list, axis=1, inplace=False)
+    #
+    # train_generator, val_generator, test_generator = timeseries_gen(seq_size, n_features, train_set, validation_set,
+    #                                                                 test_set)
+    # inv_train, inv_val, inv_test = inversesets(seq_size,feature_list, scaler, train_set, validation_set, test_set, greece,
+    #                                         dates)
+    #
+    #
+    # experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator,
+    #                   validation_set, train_set, inv_val, inv_test, dates , 0.0001 )
 
-val_generator,scaler, test_generator, test_set, inv_test, validation_set ,feature_list,n_features= multiplefeature_experiments(flist)
 
+
+# ### Format Rsults ###
 
 metrics = pd.DataFrame(
     {'Feat':Features  ,'MAE_4': MAE_4, 'MAPE_4 1 Day': MAPE_4_Next_day,
@@ -645,23 +687,29 @@ metrics=metrics.sort_values(by=['Feat']).reset_index(drop=True)
 metrics[['Feature 1','Feature 2' ]] = pd.DataFrame(metrics.Feat.tolist(), index= metrics.index)
 metrics1 = metrics.groupby(['Feature 1','Feature 2' ]).mean()
 
+ 
 
 # #Save Results
 metrics.to_csv("Results/Valdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
 metrics1.to_csv("Results/AverageValdation_Results_for_"+ str(len(feature_list)) +".csv", float_format="%.5f",index=True, header=True)
 
-
 # #####################################################################################################
-# #####################################################################################################
-# Make Final Prediction
 bestmodel = find_best_model(MAPE_4)
 print(bestmodel)
+# # #
+#
 callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
 bestmodel.fit(val_generator, epochs=60 ,  callbacks=[callback], verbose=1)
-
-
-forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list )
+#
+#
+# # bestmodel.fit_generator(val_generator, epochs=10, verbose=1)
+# # # bestmodel.save(r"Models\Final_model_for_"+ str(feature_list) + ".h5")
+# #
+# forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features)
+forecastf = predict(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features, feature_list)
+#
 finalresults=final_results(forecastf)
+#
 finalresults.to_csv("Results\Final_Results_for_" + str(feature_list) +".csv", float_format="%.3f",index=True, header=True)
 
 winsound.Beep(800, 300)
