@@ -50,7 +50,7 @@ def split_data(data, sequence):
 
     return train_set, validation_set, test_set
 
-def split_data_deaths(data, sequence):
+def split_data_death(data, sequence):
     size=len(data)
     size=size-1
     train_set = data[:size-12 ].reset_index(drop=True)
@@ -76,7 +76,6 @@ def timeseries_gen(seq_size, n_features, train, val, test):
     print("Total number of samples in the generated test data = ", len(test_generator))
     return train_generator, val_generator, test_generator
 
-
 def plotloss(mod, name=""):
     plt.figure(figsize=[12, 10], dpi=140)
     loss = mod.history['loss']
@@ -90,7 +89,6 @@ def plotloss(mod, name=""):
     plt.legend()
     plt.savefig("Plots/loss_model" + name + ".jpeg")
     plt.show()
-
 
 def plotprediction(ypredict, col, name="", pname="", predtype=''):
 
@@ -111,11 +109,10 @@ def plotprediction(ypredict, col, name="", pname="", predtype=''):
     plt.title('Predicted vs  Actual ' + pname + '  in Greece for ' + str(len(ypredict)) + ' weeks' ,fontsize=20)
     plt.suptitle(predtype,fontsize=25)
     plt.xlabel('Date',fontsize=25)
-    plt.ylabel('deaths',fontsize=25)
+    plt.ylabel('cases',fontsize=25)
     plt.legend()
     plt.savefig("Plots\pred" + name + "_" + predtype + ".jpeg")
     plt.show()
-
 
 def inversesets(sequence, feature_list, sc, trainset, validationset, testset, ogdata, dates):
     drange = dates.loc[0]
@@ -134,12 +131,10 @@ def inversesets(sequence, feature_list, sc, trainset, validationset, testset, og
     set3 = set3.set_axis(feature_list, axis=1, inplace=False)
     return set1, set2, set3
 
-
 def model_create_mv(seq_size, features):
     model = Sequential()
-    # model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features)))
-    model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total Deaths
-
+    model.add(LSTM(44, activation='relu', return_sequences=False, input_shape=(seq_size, features))) #Total C
+    # model.add(LSTM(30, activation='relu', return_sequences=False, input_shape=(seq_size, features)))  #Total D
     model.add(Dense(features))
     model.compile(optimizer='Adam', loss='mean_squared_error')
     model.summary()
@@ -181,7 +176,6 @@ def model_train(i, model, traingenerator, valgenerator, ep):
     plotloss(history, str(i))
     return model
 
-
 def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
     earlystopping = callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=5, restore_best_weights=True)
 
@@ -191,7 +185,6 @@ def model_train_earlystop(i, model, traingenerator, valgenerator, ep):
     # avep.append( len(history.history['loss']))
 
     return model
-
 
 def predict_mv(model, sc, valgenerator, validation_set, inverseval, trainset , feat ,fl):
     # Forecast   Predict using a for loop
@@ -222,16 +215,16 @@ def predict_mv(model, sc, valgenerator, validation_set, inverseval, trainset , f
         predictiondata.loc[len(predictiondata.index)] = current_pred
 
     forecast = predictiondata[-(future):]  # Save results in a dataframe
-    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual deaths
+    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual cases
     forecast = pd.DataFrame(forecast.round())  # Round results
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1,
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1,
                          ignore_index=True)  # Concate the two dfs
 
     forecast = forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
 
-    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual deaths
+    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual cases
     predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Normal Prediction'})  # Round results
     # print(predictN4)
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
@@ -241,20 +234,19 @@ def predict_mv(model, sc, valgenerator, validation_set, inverseval, trainset , f
 
     return total_forecast
 
-
 def predict_mf(model, sc, valgenerator, validation_set, inverseval, trainset, feat, fl):
     # Forecast   Predict using a for loop
     index = inverseval.index
     predictiondata = pd.DataFrame(inverseval[:seq_size])  # Empty list to populate later with predictions
     predictiondata = pd.DataFrame(trainset[-seq_size:]).reset_index(drop=True)
 
-    # A=[	1492, 1482, 1323, 1372, 1222, 662] ## New Case
+    A=[	1492, 1482, 1323, 1372, 1222, 662] ## New Case
     # [4.96948735e-07 4.67814371e-05 4.77805938e-05 5.17972453e-06, 4.87605554e-04 4.97714495e-04] Case Scale
 
 
-    A = [20, 17, 22, 21, 26, 23]  # New Deaths
+    # A = [20, 17, 22, 21, 26, 23]  # New cases
     # [0.00014925 0.00826446 0.00992908 0.00155568 0.08614006 0.10348753] Death Scale
-    newdeathsprediction = pd.DataFrame(A)
+    newcasesprediction = pd.DataFrame(A)
 
     current_batch = trainset[-seq_size:]
     forecast = pd.DataFrame()
@@ -270,43 +262,43 @@ def predict_mf(model, sc, valgenerator, validation_set, inverseval, trainset, fe
         ### Prediction ##
 
         current_pred = model.predict(current_batch)  # Make a prediction
-        total_deaths = float(current_pred[0])  # Convert Prediction to integer
-        total_deaths = total_deaths / 0.00014925  # De-scale
+        total_cases = float(current_pred[0])  # Convert Prediction to integer
+        total_cases = total_cases / 4.96948735e-07 # De-scale
 
         # ##### Create New Day Values #####
 
-        #### Total deaths ####
+        #### Total cases ####
 
-        total_deaths_per_million = total_deaths * 0.096  # Calculate Total Caces per million
+        total_cases_per_million = total_cases * 0.096  # Calculate Total Caces per million
 
-        #### New deaths ####
+        #### New cases ####
 
-        new_deaths = total_deaths - (
-        predictiondata.iloc[len(predictiondata.index) - 1, 0]) / 0.00014925  # Calculate  new deathsDe-scaled
+        new_cases = total_cases - (
+        predictiondata.iloc[len(predictiondata.index) - 1, 0]) / 4.96948735e-07  # Calculate  new casesDe-scaled
 
-        new_deaths_per_million = new_deaths * 0.096  # Calculate New per million
+        new_cases_per_million = new_cases * 0.096  # Calculate New per million
 
-        newdeathsprediction.loc[len(newdeathsprediction.index)] = [new_deaths]  # append new deaths
-        smoothednew = newdeathsprediction.rolling(window=7).mean()
-        new_deaths_smoothed = float(smoothednew.iloc[6 + i])
+        newcasesprediction.loc[len(newcasesprediction.index)] = [new_cases]  # append new cases
+        smoothednew = newcasesprediction.rolling(window=7).mean()
+        new_cases_smoothed = float(smoothednew.iloc[6 + i])
 
-        new_deaths_smoothed_pre_million = new_deaths_smoothed * 0.096  # Calculate Smoothed Permillion New deaths
+        new_cases_smoothed_pre_million = new_cases_smoothed * 0.096  # Calculate Smoothed Permillion New cases
 
         # Scale Back
         # [0.00014925 0.00826446 0.00992908 0.00155568 0.08614006 0.10348753] Death Scale
         # [4.96948735e-07 4.67814371e-05 4.77805938e-05 5.17972453e-06, 4.87605554e-04 4.97714495e-04] Case Scale
-        total_deaths = total_deaths * 0.00014925
-        new_deaths = new_deaths * 0.00826446
-        new_deaths_smoothed = new_deaths_smoothed * 0.00992908
-        total_deaths_per_million = total_deaths_per_million * 0.00155568
-        new_deaths_per_million = new_deaths_per_million * 0.08614006
-        new_deaths_smoothed_pre_million = new_deaths_smoothed_pre_million * 0.10348753
+        total_cases = total_cases * 4.96948735e-07
+        new_cases = new_cases * 4.67814371e-05
+        new_cases_smoothed = new_cases_smoothed * 4.77805938e-05
+        total_cases_per_million = total_cases_per_million * 5.17972453e-06
+        new_cases_per_million = new_cases_per_million * 4.87605554e-04
+        new_cases_smoothed_pre_million = new_cases_smoothed_pre_million * 4.97714495e-04
 
         # Add New Day Values
-        Featnames = ['total_deaths', 'new_deaths', 'new_deaths_smoothed', 'total_deaths_per_million',
-                     'new_deaths_per_million', 'new_deaths_smoothed_per_million']
-        featval = [total_deaths, new_deaths, new_deaths_smoothed, total_deaths_per_million, new_deaths_per_million,
-                   new_deaths_smoothed_pre_million]
+        Featnames = ['total_cases', 'new_cases', 'new_cases_smoothed', 'total_cases_per_million',
+                     'new_cases_per_million', 'new_cases_smoothed_per_million']
+        featval = [total_cases, new_cases, new_cases_smoothed, total_cases_per_million, new_cases_per_million,
+                   new_cases_smoothed_pre_million]
         dictionary = dict(zip(Featnames, featval))
 
         usedval = [dictionary[fl[0]], dictionary[fl[1]]  ] #, dictionary[fl[2]]  ] #,dictionary[fl[3]] ] #  ,dictionary[fl[4]]    , dictionary[fl[3]]  ]
@@ -314,11 +306,11 @@ def predict_mf(model, sc, valgenerator, validation_set, inverseval, trainset, fe
         predictiondata.loc[len(predictiondata.index)] = usedval
 
     forecast = predictiondata[-(future):]  # Save results in a dataframe
-    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual deaths
+    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual cases
     forecast = pd.DataFrame(forecast.round())  # Round results
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1,
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1,
                          ignore_index=True)  # Concate the two dfs
 
     forecast = forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
@@ -332,7 +324,7 @@ def predict_mf(model, sc, valgenerator, validation_set, inverseval, trainset, fe
         predict1[i] = predict1[0]
     # print(predict1)
 
-    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual deaths
+    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual cases
     # predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Normal Prediction'})  # Round results
     predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Normal Prediction'})  # Round results
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
@@ -342,7 +334,6 @@ def predict_mf(model, sc, valgenerator, validation_set, inverseval, trainset, fe
     # print(total_forecast)
 
     return total_forecast
-
 
 def predict_of(model, sc, valgenerator, validation_set, inverseval, trainset, feat,fl):
     # Forecast   Predict using a for loop
@@ -371,16 +362,16 @@ def predict_of(model, sc, valgenerator, validation_set, inverseval, trainset, fe
         predictiondata.loc[len(predictiondata.index)] = [current_pred]
 
     forecast = predictiondata[-(future):]  # Save results in a dataframe
-    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual deaths
+    forecast = sc.inverse_transform(forecast)  # Inverse Transform to get the actual cases
     forecast = pd.DataFrame(forecast.round())  # Round results
     forecast = forecast.set_index(index[seq_size:], 'Date').rename(columns={0: 'Prediction'})
 
-    forecast = pd.concat([forecast['Prediction'], inverseval['total_deaths'][seq_size:]], axis=1,
+    forecast = pd.concat([forecast['Prediction'], inverseval['total_cases'][seq_size:]], axis=1,
                          ignore_index=True)  # Concate the two dfs
 
     forecast = forecast.set_axis(['Prediction', 'Actual'], axis=1, inplace=False)
 
-    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual deaths
+    predictN4 = sc.inverse_transform(predict1)  # Inverse Transform to get the actual cases
     predictN4 = pd.DataFrame(predictN4.round()).rename(columns={0: 'Normal Prediction'})  # Round results
     # print(predictN4)
     predictN4 = predictN4.set_index(index[seq_size:], 'Date')
@@ -406,20 +397,18 @@ def Hyper(parameter1, parameter2, parameter3, repetitions):
 
     return Hyperparameters
 
-
 def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator, val_generator, validation_set,
                 train_set, inv_val, inv_test, dates, lrate,feature_list):
     #### Mulitvariate ####
-    # experimentmodel = model_create_mv( seq_size ,n_features)
-    # experimentmodel = model_create_mv(seq_size, n_features)  # stacked
-    # experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
-    # forecast = predict_mv(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set,n_features ,feature_list)
+    experimentmodel = model_create_mv(seq_size, n_features)
+    experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    forecast = predict_mv(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set,n_features ,feature_list)
 
     
     ### Multiple Features ####
-    experimentmodel = stacked_model_create_mf(seq_size, n_features)
-    experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
-    forecast = predict_mf(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set, n_features,feature_list)
+    # experimentmodel = stacked_model_create_mf(seq_size, n_features)
+    # experimentmodel = model_train_earlystop(i, experimentmodel, train_generator, val_generator, epochs)  # Train Model
+    # forecast = predict_mf(experimentmodel, scaler, val_generator, validation_set, inv_val, train_set, n_features,feature_list)
 
     #### One Features ####
     # experimentmodel = stacked_model_create_mf(seq_size, n_features)
@@ -476,7 +465,6 @@ def experiments(i, nodes, scaler, seq_size, epochs, n_features, train_generator,
 
     return
 
-
 def find_best_model(mape):
     mape = pd.DataFrame(mape)
     min = mape.idxmin()
@@ -484,7 +472,6 @@ def find_best_model(mape):
     best_model = tensorflow.keras.models.load_model(r"Models/model_" + str(j) + ".h5")
     print("Best Model is :model_" + str(j) + ".h5")
     return best_model
-
 
 def final_results(dataframe):
     # plotprediction(dataframe[:1], 0, "iction_7_day_prediction", pname, 'For Loop Prediction')
@@ -662,19 +649,19 @@ def correlation(df , name):
     Greece_total = df.drop(columns=['date'])
     # Greece_total=Greece_total.drop(columns=['date', 'Unnamed: 0'])
 
-    total_deaths_cor = pd.DataFrame()
+    total_cases_cor = pd.DataFrame()
     correlation_mat_p = Greece_total.corr()  # Pearsons Correlation
-    total_deaths_cor['Pearson'] = correlation_mat_p['total_'+ name]
+    total_cases_cor['Pearson'] = correlation_mat_p['total_'+ name]
     correlation_mat_s = Greece_total.corr(method='spearman')  # Spearman's Correlation
 
-    total_deaths_cor['Spearman'] = correlation_mat_s['total_'+ name]
+    total_cases_cor['Spearman'] = correlation_mat_s['total_'+ name]
 
-    Spearman = total_deaths_cor['Spearman']
+    Spearman = total_cases_cor['Spearman']
     Spearman = Spearman[Spearman > 0.9]
     Spearman = Spearman.sort_values(ascending=False)
     Spearman = Spearman.index.to_list()
 
-    Pearson = total_deaths_cor['Pearson']
+    Pearson = total_cases_cor['Pearson']
     Pearson = Pearson[Pearson > 0.9]
     Pearson = Pearson.sort_values(ascending=False)
     Pearson = Pearson.index.to_list()
@@ -686,13 +673,13 @@ def multivarflist (control , pname , corelation):
     control = ctrl[i]
     print(control)
     cor = corelation[:control]
-    # a, b = cor.index('total_deaths_per_million'), cor.index('total_deaths')
+    # a, b = cor.index('total_cases_per_million'), cor.index('total_cases')
     # cor[b], cor[a] = cor[a], cor[b]
 
     ## Combinations ###
     flist = list(combinations(cor, len(cor)))
     # flist=cor[0]
-    flist = [x for x in flist if "total_" + pname in x]  # Must always contain total deaths/ deaths
+    flist = [x for x in flist if "total_" + pname in x]  # Must always contain total cases/ cases
     flist = flist * times
     ## Control length
     flist = sorted(flist)
@@ -706,8 +693,8 @@ def featcomb (pname ,title ,combinations ):
     flist = featcombos(pname, title, combinations)
     flist = flist * times
 
-    flist = [x for x in flist if "total_deaths" in x]  # Must always contain total deaths/ deaths
-    flist = [x for x in flist if "total_deaths_per_million" in x]  ## Select pairs that i want to male a longterm prediction
+    flist = [x for x in flist if "total_cases" in x]  # Must always contain total cases/ cases
+    flist = [x for x in flist if "total_cases_per_million" in x]  ## Select pairs that i want to male a longterm prediction
     # flist=flist[:2]   ## Contorl length
     return flist
 
@@ -732,7 +719,7 @@ def mainpipeline(alist):
     feature_list = (greece.columns).to_list()
     n_features = len(feature_list)
 
-    train_set, validation_set, test_set = split_data_deaths(greece, seq_size)
+    train_set, validation_set, test_set = split_data(greece, seq_size)
     scaler = MinMaxScaler()
     scaler.fit(train_set)
 
@@ -780,11 +767,11 @@ loc = "owid_dataset_weekly.csv"
 seq_size = 3
 epochs = 60
 times = 10
-pname = 'deaths'
+pname = 'cases'
 
 ### Multivar Parameters ###
 ctrl = [2,3,4,5,6,7,8,9,10]
-ctrl = [2]
+ctrl = [3]
 
 #Multiple Feature Parameters
 combos=2
@@ -797,27 +784,24 @@ Pearson,Spearman =correlation(Greece_total , pname)
 dates = pd.DataFrame()
 
 
-
-
-
 ############################ Multivariate ############################  
-# for i in range(len(ctrl)):
-#     flist=multivarflist(ctrl, pname , Pearson)
-#     Greece_total = pd.read_csv(loc)
-#     for i in range(len(flist)):
-#         feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
+for i in range(len(ctrl)):
+    flist=multivarflist(ctrl, pname , Pearson)
+    Greece_total = pd.read_csv(loc)
+    for i in range(len(flist)):
+        feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
 
 #####################################################################
 
 ############################ Mutliple Features ######################  
-flist=featcomb(pname , titles , combos)
-for i in range(len(flist)):
-    feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
+# flist=featcomb(pname , titles , combos)
+# for i in range(len(flist)):
+#     feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
 #####################################################################
 
 
 ############################ One Feature ######################
-# flist=[['total_deaths']]
+# flist=[['total_cases']]
 # flist=flist*times
 # for i in range(len(flist)):
 #     feature_list,val_generator,scaler, test_generator, test_set, inv_test, validation_set,n_features=mainpipeline(flist)
@@ -827,7 +811,7 @@ for i in range(len(flist)):
 # # #Save Results
 metrics = pd.DataFrame(
     {'Feat': Features, 'MAE_4': MAE_4,
-     'MAPE_4_1_Week': MAPE_4_7days, 'MAPE_4_2_Weeks': MAPE_4,'MAPE_4_3_Weeks':MAPE_4_Next_day ,'MAPE_4_4_Weeks': MAPE_3days,
+     'MAPE_4_1_Week': MAPE_4_7days, 'MAPE_4_2_Weeks': MAPE_4,'MAPE_4_3_Weeks':MAPE_4_Next_day ,'MAPE_4_4_Weeks': MAPE_4_3days,
      'MAPE_1_Week': MAPE_7days, 'MAPE_2_Weeks': MAPE, 'MAPE_3_Weeks': MAPE_Next_day ,'MAPE_4_Weeks': MAPE_3days,
      'MSE_4': MSE_4, 'RMSE_4': RMSE_4})
 
@@ -840,17 +824,17 @@ average.to_csv("Results/Average_Valdation_Results_for__" + str(len(feature_list)
 bestmodel = find_best_model(MAPE_4)
 print(bestmodel)
 
-callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=3)
+callback = tensorflow.keras.callbacks.EarlyStopping(monitor='loss', restore_best_weights=True, patience=5)
 bestmodel.fit(val_generator, epochs=60, callbacks=[callback], verbose=1)
 
 
 #Multivariate
-# forecastf = predict_mv(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
+forecastf = predict_mv(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
 
 
 
 #Multiple Features
-forecastf = predict_mf(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
+# forecastf = predict_mf(bestmodel, scaler, test_generator, test_set, inv_test, validation_set,n_features,feature_list)
 
 
 #One Features
