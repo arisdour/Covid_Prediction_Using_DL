@@ -1,31 +1,12 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.pyplot import figure
+from pmdarima.arima import auto_arima
 
-
-import math
-
-import tensorflow
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM
-from tensorflow.keras.layers import Dense
-from tensorflow.keras import callbacks
-
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_absolute_error
-from sklearn.metrics import mean_squared_error
-from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import f_regression
-from sklearn.feature_selection import mutual_info_regression
-
-import itertools
-from itertools import product
-from itertools import combinations
 
 from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
-from statsmodels.tsa.seasonal import seasonal_decompose
 
+from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
@@ -37,29 +18,11 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 
 def split_data(data, sequence):
-    train_set = data[:len(data)-90]
+    train_set = data[:369]
     # validation_set = data[355 - sequence:369]
-    test_set = data[-90:]
-
+    test_set = data[369:]
     return train_set, test_set
 
-
-def timeseries_gen(seq_size, n_features, train, val, test):
-    # Train Set
-    train_generator = TimeseriesGenerator(train, train.to_numpy(), length=seq_size, batch_size=1)
-    print("Total number of samples in the original training data = ", len(train))
-    print("Total number of samples in the generated training data = ", len(train_generator))
-
-    # Validation Set
-    val_generator = TimeseriesGenerator(val, val.to_numpy(), length=seq_size, batch_size=1)
-    print("Total number of samples in the original validation data = ", len(val))
-    print("Total number of samples in the validation data = ", len(val_generator))
-
-    # Test Set
-    test_generator = TimeseriesGenerator(test, test.to_numpy(), length=seq_size, batch_size=1)
-    print("Total number of samples in the original test data = ", len(test))
-    print("Total number of samples in the generated test data = ", len(test_generator))
-    return train_generator, val_generator, test_generator
 
 def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.figure(figsize=[12,10] , dpi=140 )
@@ -72,6 +35,29 @@ def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
     plt.legend()
     plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
     plt.show()
+
+def final_results(testdf, preddf):
+    day_7 = mean_absolute_percentage_error(testdf[:7], preddf[:7])
+    day_14 = mean_absolute_percentage_error(testdf[:14], preddf[:14])
+    day_30 = mean_absolute_percentage_error(testdf[:30], preddf[:30])
+    day_60 = mean_absolute_percentage_error(testdf[:60], preddf[:60])
+    day_90 = mean_absolute_percentage_error(testdf[:90], preddf[:90])
+
+    results=pd.DataFrame(day_7,  day_14,  day_30 ,day_60, day_90 )
+
+
+    return results
+
+def plotres (trainingset , testset ,pred, pname):
+    plt.figure(figsize=(15,12))
+    plt.plot(trainingset,label="Training")
+    plt.plot(testset,label="Test")
+    plt.plot(pred,label="Predicted")
+    plt.legend(loc = 'upper left')
+    plt.xlabel('Date')
+    plt.ylabel('Total '+ pname)
+    plt.show()
+
 
 # loc="owid_dataset_fixed.csv"
 # Greece_total = pd.read_csv(loc)
@@ -136,17 +122,21 @@ def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
 # plt.show()
 
 
+
 ### AUTO ARIMA ###
-from pmdarima.arima import auto_arima
 loc="owid_dataset_fixed.csv"
 Greece_total = pd.read_csv(loc).set_index('date')
 total_cases=Greece_total['total_cases']
-train  , test = split_data(total_cases,0)
+predname='cases'
+
+#Split Data
+train, test = split_data(total_cases,0)
 
 plt.plot(train)
 plt.plot(test)
 plt.show()
 
+### Make Model ###
 arima_model =  auto_arima(train,start_p=0, d=1, start_q=0,
                           max_p=6, max_d=6, max_q=6, start_P=0,
                           D=1, start_Q=0, max_P=6, max_D=6,
@@ -156,20 +146,12 @@ arima_model =  auto_arima(train,start_p=0, d=1, start_q=0,
                           random_state=20,n_fits = 70 )
 
 arima_model.summary()
-prediction = pd.DataFrame(arima_model.predict(n_periods = 90),index=test.index)
-prediction.columns = ['predicted_cases']
+### Make Prediction ###
+prediction = pd.DataFrame(arima_model.predict(n_periods = len(test)),index=test.index)
+prediction.columns = ['predicted_'+ predname]
 
-plt.figure(figsize=(8,5))
-plt.plot(train,label="Training")
-plt.plot(test,label="Test")
-plt.plot(prediction,label="Predicted")
-plt.legend(loc = 'lower left')
-plt.show()
-totalpred=pd.DataFrame()
+### Results ####
+plotres(train , test, prediction , predname)
 totalpred=pd.concat([test, prediction], ignore_index=True ,axis=1)
+finalresults = final_results(test,prediction)
 
-lour1=mean_absolute_percentage_error(test[:7],prediction[:7])
-lour2=mean_absolute_percentage_error(test[:14],prediction[:14])
-lour3=mean_absolute_percentage_error(test[:30],prediction[:30])
-lour4=mean_absolute_percentage_error(test[:60],prediction[:60])
-lour5=mean_absolute_percentage_error(test[:90],prediction[:90])
