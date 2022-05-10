@@ -1,13 +1,23 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from pmdarima.arima import auto_arima
 
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
-
+def adftest(df):
+    result = adfuller(df.dropna())
+    # ADF Test
+    print(f'ADF Statistic: {result[0]}')
+    print(f'n_lags: {result[1]}')
+    print(f'p-value: {result[1]}')
+    for key, value in result[4].items():
+        print('Critial Values:')
+        print(f'   {key}, {value}')
+    return result
 
 def mean_absolute_percentage_error(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
@@ -43,33 +53,26 @@ def plotres (trainingset , testset ,pred, pname):
     plt.show()
 
 
-# loc="owid_dataset_fixed.csv"
-# Greece_total = pd.read_csv(loc)
-# Greece_total['date'] = pd.to_datetime(Greece_total['date']) # convert date column to DateTime
-# Greece_total.set_index('date', inplace=True)
-#
-# analysis = Greece_total[['total_cases']].copy()
-# decompose_result_mult = seasonal_decompose(analysis, model="multiplicative")
-#
+loc="owid_dataset_fixed.csv"
+Greece_total = pd.read_csv(loc,parse_dates=True,index_col="date")
+
+analysis = Greece_total[['total_cases']].copy()
+decompose_result_mult = seasonal_decompose(analysis, model="multiplicative")
+
 # trend = decompose_result_mult.trend
 # seasonal = decompose_result_mult.seasonal
 # residual = decompose_result_mult.resid
-#
-# figure(figsize=(14, 10))
-# decompose_result_mult.plot()
-# plt.show()
-#
-#
-# ########################################################################################################################
-#
-# plt.rcParams.update({'figure.figsize':(18,10)})
-# from numpy import log
-#
-#
-# analysis = analysis.reset_index(drop=[True])
-# result = adfuller(analysis.total_cases.dropna())
-# print('ADF Statistic: %f' % result[0])
-# print('p-value: %f' % result[1])
+
+fig = decompose_result_mult.plot()
+fig.set_size_inches((16, 9))
+# Tight layout to realign things
+fig.tight_layout()
+plt.show()
+
+adttestres = adftest(analysis.diff().diff())
+
+
+
 #
 # # Original Series
 # fig, axes = plt.subplots(4, 1, sharex=True)
@@ -105,55 +108,55 @@ def plotres (trainingset , testset ,pred, pname):
 # plot_acf(analysis.total_cases.diff().diff().diff().diff().diff().diff().dropna())
 # plt.show()
 
+def mainf():
+
+    ### AUTO ARIMA ###
+    loc="owid_dataset_fixed.csv"
+    Greece_total = pd.read_csv(loc).set_index('date')
+    total_cases=Greece_total['total_cases']
+    predname='cases'
+
+    #Split Data
+    train, test = split_data(total_cases,0)
+
+    plt.plot(train)
+    plt.plot(test)
+    plt.show()
+
+    ### Make Model ###
+    # arima_model =  auto_arima(train,test='adf',start_p=0, d=1, start_q=0,
+    #                           max_p=6, max_d=6, max_q=6, start_P=0,
+    #                           D=1, start_Q=0, max_P=6, max_D=6,
+    #                           max_Q=6, m=12, seasonal=False,
+    #                           error_action='warn',trace = True,
+    #                           supress_warnings=True,stepwise = True,
+    #                           random_state=20,n_fits = 70 )
+
+    arima_model = auto_arima(train, start_p=1, start_q=1,
+                          test='adf',       # use adftest to find optimal 'd'
+                          max_p=6, max_q=6, # maximum p and q
+                          m=12,              # frequency of series
+                              # let model determine 'd'
+                          seasonal=False,   # No Seasonality
+                          start_P=0,
+                          D=0,
+                          trace=True,
+                          error_action='ignore',
+                          suppress_warnings=True,
+                          stepwise=True, )
 
 
-### AUTO ARIMA ###
-loc="owid_dataset_fixed.csv"
-Greece_total = pd.read_csv(loc).set_index('date')
-total_cases=Greece_total['total_cases']
-predname='cases'
+    arima_model.summary()
+    arima_model.plot_diagnostics(figsize=(10,8))
+    plt.show()
+    ### Make Prediction ###
+    prediction = pd.DataFrame(arima_model.predict(n_periods = len(test)),index=test.index)
+    prediction.columns = ['predicted_'+ predname]
 
-#Split Data
-train, test = split_data(total_cases,0)
-
-plt.plot(train)
-plt.plot(test)
-plt.show()
-
-### Make Model ###
-# arima_model =  auto_arima(train,test='adf',start_p=0, d=1, start_q=0,
-#                           max_p=6, max_d=6, max_q=6, start_P=0,
-#                           D=1, start_Q=0, max_P=6, max_D=6,
-#                           max_Q=6, m=12, seasonal=False,
-#                           error_action='warn',trace = True,
-#                           supress_warnings=True,stepwise = True,
-#                           random_state=20,n_fits = 70 )
-
-arima_model = auto_arima(train, start_p=1, start_q=1,
-                      test='adf',       # use adftest to find optimal 'd'
-                      max_p=6, max_q=6, # maximum p and q
-                      m=12,              # frequency of series
-                          # let model determine 'd'
-                      seasonal=False,   # No Seasonality
-                      start_P=0,
-                      D=0,
-                      trace=True,
-                      error_action='ignore',
-                      suppress_warnings=True,
-                      stepwise=True, )
-
-
-arima_model.summary()
-arima_model.plot_diagnostics(figsize=(10,8))
-plt.show()
-### Make Prediction ###
-prediction = pd.DataFrame(arima_model.predict(n_periods = len(test)),index=test.index)
-prediction.columns = ['predicted_'+ predname]
-
-### Results ####
-plotres(train , test, prediction , predname)
-totalpred=pd.concat([test, prediction], ignore_index=True ,axis=1)
-finalresults = final_results(test,prediction)
+    ### Results ####
+    plotres(train , test, prediction , predname)
+    totalpred=pd.concat([test, prediction], ignore_index=True ,axis=1)
+    finalresults = final_results(test,prediction)
 
 
 
