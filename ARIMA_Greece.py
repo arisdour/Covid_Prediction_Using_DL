@@ -71,9 +71,6 @@ plt.show()
 
 adttestres = adftest(analysis.diff().diff())
 
-
-
-#
 # # Original Series
 # fig, axes = plt.subplots(4, 1, sharex=True)
 # #
