@@ -3,8 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pmdarima.arima import auto_arima
 
-
-
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
@@ -21,19 +19,6 @@ def split_data(data, sequence):
     # validation_set = data[355 - sequence:369]
     test_set = data[369:]
     return train_set, test_set
-
-
-def plotprediction(ypredict , col,name="" , pname="" , predtype=''):
-    plt.figure(figsize=[12,10] , dpi=140 )
-    plt.plot(ypredict.index, ypredict.iloc[:, col], 'y', label='Prediction ')
-    plt.plot(ypredict.index, ypredict.iloc[:, 1], 'r', label='Actual ')
-    plt.title('Predicted vs  Actual '  + pname + '  in Greece for ' +str(len(ypredict)) + ' days')
-    plt.suptitle(predtype)
-    plt.xlabel('Date')
-    plt.ylabel('deaths')
-    plt.legend()
-    plt.savefig("Plots\pred" + name +"_"+ predtype+ ".jpeg"  )
-    plt.show()
 
 def final_results(testdf, preddf):
     day_7 = mean_absolute_percentage_error(testdf[:7], preddf[:7])
