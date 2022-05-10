@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from pmdarima.arima import auto_arima
 
 
-from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
@@ -43,7 +42,7 @@ def final_results(testdf, preddf):
     day_60 = mean_absolute_percentage_error(testdf[:60], preddf[:60])
     day_90 = mean_absolute_percentage_error(testdf[:90], preddf[:90])
 
-    results=pd.DataFrame(day_7,  day_14,  day_30 ,day_60, day_90 )
+    results=pd.DataFrame({day_7,  day_14,  day_30 ,day_60, day_90} )
 
 
     return results
@@ -137,15 +136,31 @@ plt.plot(test)
 plt.show()
 
 ### Make Model ###
-arima_model =  auto_arima(train,start_p=0, d=1, start_q=0,
-                          max_p=6, max_d=6, max_q=6, start_P=0,
-                          D=1, start_Q=0, max_P=6, max_D=6,
-                          max_Q=6, m=12, seasonal=False,
-                          error_action='warn',trace = True,
-                          supress_warnings=True,stepwise = True,
-                          random_state=20,n_fits = 70 )
+# arima_model =  auto_arima(train,test='adf',start_p=0, d=1, start_q=0,
+#                           max_p=6, max_d=6, max_q=6, start_P=0,
+#                           D=1, start_Q=0, max_P=6, max_D=6,
+#                           max_Q=6, m=12, seasonal=False,
+#                           error_action='warn',trace = True,
+#                           supress_warnings=True,stepwise = True,
+#                           random_state=20,n_fits = 70 )
+
+arima_model = auto_arima(train, start_p=1, start_q=1,
+                      test='adf',       # use adftest to find optimal 'd'
+                      max_p=6, max_q=6, # maximum p and q
+                      m=12,              # frequency of series
+                          # let model determine 'd'
+                      seasonal=False,   # No Seasonality
+                      start_P=0,
+                      D=0,
+                      trace=True,
+                      error_action='ignore',
+                      suppress_warnings=True,
+                      stepwise=True, )
+
 
 arima_model.summary()
+arima_model.plot_diagnostics(figsize=(10,8))
+plt.show()
 ### Make Prediction ###
 prediction = pd.DataFrame(arima_model.predict(n_periods = len(test)),index=test.index)
 prediction.columns = ['predicted_'+ predname]
@@ -154,4 +169,7 @@ prediction.columns = ['predicted_'+ predname]
 plotres(train , test, prediction , predname)
 totalpred=pd.concat([test, prediction], ignore_index=True ,axis=1)
 finalresults = final_results(test,prediction)
+
+
+
 
