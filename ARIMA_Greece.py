@@ -24,9 +24,9 @@ def mean_absolute_percentage_error(y_true, y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
 def split_data(data, sequence):
-    train_set = data[:-8]
-    # validation_set = data[355 - sequence:369]
-    test_set = data[-9:-1]
+    train_set = data[:369]
+    # train_set = data[355 - sequence:369]
+    test_set = data[369:]
     return train_set, test_set
 
 def final_results(testdf, preddf):
@@ -51,69 +51,87 @@ def plotres (trainingset , testset ,pred, pname):
     plt.ylabel('Total '+ pname)
     plt.show()
 
+def decomposition(df):
+    decompose_result_mult = seasonal_decompose(df, model="additive")
+    fig = decompose_result_mult.plot()
+    fig.set_size_inches((16, 9))
+    fig.tight_layout()
+    plt.show()
+    return decompose_result_mult
+
+
 loc="owid_dataset_fixed.csv"
-# loc="owid_dataset_weekly.csv"
 
 Greece_total = pd.read_csv(loc,parse_dates=True,index_col="date")
 train,test = split_data(Greece_total,0)
 
-train = train[['new_cases']].copy()
-test = test[['new_cases']].copy()
+### Train Set - Test Set Split ###
+train = train[['total_cases']].copy()
+train=train.dropna()
 
-analysis = Greece_total[['new_cases']].copy()
+test = test[['total_cases']].copy()
+test=test.dropna()
+
+# analysis = Greece_total[['total_cases']].copy()
+## Analyse Data Set
 analysis =train
+# decomp_res=decomposition(train) #Seasonal Decomposition
+adttestres = adftest(analysis.diff().diff()) # Use d= 2 for my model
+# adttestres = adftest(analysis.shift(7)) # Use d= 2 for my model
 
-diff=analysis.diff()
-diff=diff.dropna()
-decompose_result_mult = seasonal_decompose(analysis, model="additive",period=30)
-fig = decompose_result_mult.plot()
+
+
+############## ACF & PACF Plots ################
+#Calculate p order PACF
+
+fig=plot_pacf(analysis.diff().diff().dropna())
 fig.set_size_inches((16, 9))
-fig.tight_layout()
+plt.show()
+#
+fig=plot_acf(analysis.diff().diff().dropna())
+fig.set_size_inches((16, 9))
 plt.show()
 
+analysis=analysis.reset_index(drop=True)
+##################################################
+arima_model = auto_arima(analysis, start_p=0, start_q=0,
+                      # test='adf',       # use adftest to find optimal 'd'
+                      max_p=5, max_q=5, # maximum p and q
+                      m=7,              # frequency of series
+                      # d=1,           # let model determine 'd'
+                      # D=1,
+                      seasonal=True,   # Seasonality
+                      trace=True,
+                      error_action='ignore',
+                      suppress_warnings=True,
+                      stepwise=True)
 
-res=decompose_result_mult.resid
-adttestres = adftest(analysis.diff()) # Use d =2 for my model
-adttestres = adftest(res ) # Use d =2 for my model
+arima_model.summary()
+arima_model.plot_diagnostics(figsize=(18,18))
+plt.show()
 
-# adttestres = adftest(analysis.shift(7)) # Use d =2 for my model
+train=train.reset_index(drop=True)
+test=test.reset_index(drop=True)
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+arima_model = SARIMAX(train,order=(5,2,0),seasonal_order=(1,0,1,7))
+result = arima_model.fit()
+print(result.summary())
 
-#
-# ############## ACF & PACF Plots ################
-# #Calculate p order PACF
-#
-# fig=plot_pacf(analysis.diff().dropna())
-# fig.set_size_inches((16, 9))
-# plt.show()
-#
-# fig=plot_acf(analysis.diff().dropna())
-# fig.set_size_inches((16, 9))
-# plt.show()
+result.plot_diagnostics(figsize=(18,18))
 
-# arima_model = auto_arima(analysis, start_p=0, start_q=0,
-#                       test='adf',       # use adftest to find optimal 'd'
-#                       max_p=13, max_q=13, # maximum p and q
-#                       m=1,              # frequency of series
-#                       # d=1,           # let model determine 'd'
-#                       seasonal=False,   # Seasonality
-#
-#
-#                       trace=True,
-#                       error_action='ignore',
-#                       suppress_warnings=True,
-#                       stepwise=False)
-#
-# arima_model.summary()
-# arima_model.plot_diagnostics(figsize=(18,18))
-#
-# plt.show()
-#
-# ### Make Prediction ###
-# predname='cases'
-# prediction = pd.DataFrame(arima_model.predict(start = "2021-05-09", end = '2021-06-27',index=test.index))
-# prediction.columns = ['predicted_'+ predname]
-#
-#     ### Results ####
-# plotres(train , test, prediction , predname)
-# totalpred=pd.concat([test, prediction], ignore_index=True ,axis=1)
-# finalresults = final_results(test,prediction)
+
+### Make Prediction ###
+predname='cases'
+start=len(train)
+end=len(train)+len(test)-1
+prediction = pd.DataFrame(arima_model.predict(len(test),dynamic='true' , index=test.index))
+prediction.columns = ['predicted_'+ predname]
+prediction=prediction.set_index(test.index)
+
+    ### Results ####
+plotres(train , test, prediction , predname)
+totalpred=pd.concat([test, prediction], ignore_index=False ,axis=1)
+finalresults = final_results(test,prediction)
+
+totalpred.plot(figsize=(14,10))
+plt.show()
