@@ -59,6 +59,18 @@ def decomposition(df):
     plt.show()
     return decompose_result_mult
 
+from statsmodels.tsa.stattools import kpss
+
+def kpss_test(timeseries):
+    print("Results of KPSS Test:")
+    kpsstest = kpss(timeseries, regression="ct"  , nlags='auto')
+    kpss_output = pd.Series(
+        kpsstest[0:3], index=["Test Statistic", "p-value", "Lags Used"]
+    )
+    for key, value in kpsstest[3].items():
+        kpss_output["Critical Value (%s)" % key] = value
+    print(kpss_output)
+
 
 loc="owid_dataset_fixed.csv"
 
@@ -66,19 +78,22 @@ Greece_total = pd.read_csv(loc,parse_dates=True,index_col="date")
 train,test = split_data(Greece_total,0)
 
 ### Train Set - Test Set Split ###
-train = train[['total_cases']].copy()
+train = train[['total_deaths']].copy()
 train=train.dropna()
 
-test = test[['total_cases']].copy()
+test = test[['total_deaths']].copy()
 test=test.dropna()
 
-# analysis = Greece_total[['total_cases']].copy()
+# analysis = Greece_total[['total_deaths']].copy()
 ## Analyse Data Set
+analysis =Greece_total[["total_deaths"]].dropna()
 analysis =train
 # decomp_res=decomposition(train) #Seasonal Decomposition
-adttestres = adftest(analysis.diff().diff()) # Use d= 2 for my model
-# adttestres = adftest(analysis.shift(7)) # Use d= 2 for my model
 
+
+adftestres = adftest(analysis.diff().diff().dropna()) # Use d= 2 for my model
+analysis.diff().plot()
+plt.show()
 
 
 ############## ACF & PACF Plots ################
@@ -88,42 +103,51 @@ fig=plot_pacf(analysis.diff().diff().dropna())
 fig.set_size_inches((16, 9))
 plt.show()
 #
-fig=plot_acf(analysis.diff().diff().dropna())
+fig=plot_acf(analysis.diff().diff().diff().dropna())
 fig.set_size_inches((16, 9))
 plt.show()
 
-analysis=analysis.reset_index(drop=True)
+
 ##################################################
-arima_model = auto_arima(analysis, start_p=0, start_q=0,
-                      # test='adf',       # use adftest to find optimal 'd'
-                      max_p=5, max_q=5, # maximum p and q
+arima_model = auto_arima(train, start_p=1, start_q=0,
+                      test='adf',       # use adftest to find optimal 'd'
+                      max_p=15, max_q=15, # maximum p and q
                       m=7,              # frequency of series
                       # d=1,           # let model determine 'd'
                       # D=1,
                       seasonal=True,   # Seasonality
                       trace=True,
+
+                      max_order=10,
                       error_action='ignore',
                       suppress_warnings=True,
-                      stepwise=True)
+                      stepwise=False)
 
 arima_model.summary()
-arima_model.plot_diagnostics(figsize=(18,18))
+arima_model.plot_diagnostics(figsize=(18,10))
 plt.show()
 
-train=train.reset_index(drop=True)
-test=test.reset_index(drop=True)
-from statsmodels.tsa.statespace.sarimax import SARIMAX
-arima_model = SARIMAX(train,order=(5,2,0),seasonal_order=(1,0,1,7))
-result = arima_model.fit()
-print(result.summary())
 
-result.plot_diagnostics(figsize=(18,18))
+# train=train.reset_index(drop=True)
+# test=test.reset_index(drop=True)
+# from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+# train=train.reset_index(drop=True)
+model = SARIMAX(train, order=(4, 2, 5), seasonal_order=(0, 0, 1, 7))
+results=model.fit(maxiter=300)
+results.summary()
 
 
-### Make Prediction ###
-predname='cases'
-start=len(train)
-end=len(train)+len(test)-1
+
+# Actual vs Fitted
+model.plot_predict(dynamic=False)
+plt.show()
+
+
+## Make Prediction ###
+predname='deaths'
+# start=len(train)
+# end=len(train)+len(test)-1
 prediction = pd.DataFrame(arima_model.predict(len(test),dynamic='true' , index=test.index))
 prediction.columns = ['predicted_'+ predname]
 prediction=prediction.set_index(test.index)
@@ -135,3 +159,5 @@ finalresults = final_results(test,prediction)
 
 totalpred.plot(figsize=(14,10))
 plt.show()
+
+
