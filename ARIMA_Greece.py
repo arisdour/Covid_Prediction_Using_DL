@@ -24,17 +24,19 @@ def mean_absolute_percentage_error(y_true, y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
 def split_data(data, sequence):
-    train_set = data[:369]
+    train_set = data[:-9]
+    # train_set = data[:369]
     # train_set = data[355 - sequence:369]
-    test_set = data[369:]
+    test_set = data[-9:-1]
+    # test_set = data[369:]
     return train_set, test_set
 
 def final_results(testdf, preddf):
-    day_7 = mean_absolute_percentage_error(testdf[:7], preddf[:7])
-    day_14 = mean_absolute_percentage_error(testdf[:14], preddf[:14])
-    day_30 = mean_absolute_percentage_error(testdf[:30], preddf[:30])
-    day_60 = mean_absolute_percentage_error(testdf[:60], preddf[:60])
-    day_90 = mean_absolute_percentage_error(testdf[:90], preddf[:90])
+    day_7 = mean_absolute_percentage_error(testdf[:1], preddf[:1])
+    day_14 = mean_absolute_percentage_error(testdf[:2], preddf[:2])
+    day_30 = mean_absolute_percentage_error(testdf[:4], preddf[:4])
+    day_60 = mean_absolute_percentage_error(testdf[:6], preddf[:6])
+    day_90 = mean_absolute_percentage_error(testdf[:8], preddf[:8])
 
     results=pd.DataFrame({day_7,  day_14,  day_30 ,day_60, day_90} )
 
@@ -61,18 +63,9 @@ def decomposition(df):
 
 from statsmodels.tsa.stattools import kpss
 
-def kpss_test(timeseries):
-    print("Results of KPSS Test:")
-    kpsstest = kpss(timeseries, regression="ct"  , nlags='auto')
-    kpss_output = pd.Series(
-        kpsstest[0:3], index=["Test Statistic", "p-value", "Lags Used"]
-    )
-    for key, value in kpsstest[3].items():
-        kpss_output["Critical Value (%s)" % key] = value
-    print(kpss_output)
-
 
 loc="owid_dataset_fixed.csv"
+loc="owid_dataset_weekly.csv"
 
 Greece_total = pd.read_csv(loc,parse_dates=True,index_col="date")
 train,test = split_data(Greece_total,0)
@@ -92,7 +85,7 @@ analysis =train
 
 
 adftestres = adftest(analysis.diff().diff().dropna()) # Use d= 2 for my model
-analysis.diff().plot()
+analysis.diff().diff().plot()
 plt.show()
 
 
@@ -112,43 +105,43 @@ plt.show()
 arima_model = auto_arima(train, start_p=1, start_q=0,
                       test='adf',       # use adftest to find optimal 'd'
                       max_p=15, max_q=15, # maximum p and q
-                      m=7,              # frequency of series
-                      # d=1,           # let model determine 'd'
+                      m=1,              # frequency of series
+                      # d=2,           # let model determine 'd'
                       # D=1,
-                      seasonal=True,   # Seasonality
+                      seasonal=False,   # Seasonality
                       trace=True,
 
                       max_order=10,
                       error_action='ignore',
                       suppress_warnings=True,
-                      stepwise=False)
-
+                      stepwise=True)
+#
 arima_model.summary()
 arima_model.plot_diagnostics(figsize=(18,10))
 plt.show()
+#
+#
+# # train=train.reset_index(drop=True)
+# # test=test.reset_index(drop=True)
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 
-
-# train=train.reset_index(drop=True)
-# test=test.reset_index(drop=True)
-# from statsmodels.tsa.statespace.sarimax import SARIMAX
-
-# train=train.reset_index(drop=True)
-model = SARIMAX(train, order=(4, 2, 5), seasonal_order=(0, 0, 1, 7))
+# # train=train.reset_index(drop=True)
+model = SARIMAX(train, order=(3, 2, 0), seasonal_order=(0, 0, 0, 0))
 results=model.fit(maxiter=300)
 results.summary()
 
-
-
-# Actual vs Fitted
-model.plot_predict(dynamic=False)
-plt.show()
-
-
+#
+#
+# # Actual vs Fitted
+# model.plot_predict(dynamic=False)
+# plt.show()
+#
+#
 ## Make Prediction ###
 predname='deaths'
 # start=len(train)
 # end=len(train)+len(test)-1
-prediction = pd.DataFrame(arima_model.predict(len(test),dynamic='true' , index=test.index))
+prediction = pd.DataFrame(arima_model.predict(len(test),dynamic='false' , index=test.index))
 prediction.columns = ['predicted_'+ predname]
 prediction=prediction.set_index(test.index)
 
@@ -159,5 +152,5 @@ finalresults = final_results(test,prediction)
 
 totalpred.plot(figsize=(14,10))
 plt.show()
-
-
+#
+#
