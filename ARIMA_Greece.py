@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from pmdarima.arima import auto_arima
 
+from statsmodels.tsa.arima.model import ARIMA
 
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
@@ -36,17 +37,6 @@ def split_data(data, sequence):
     test_set = data[369:]
     return train_set, test_set
 
-# def final_results(testdf, preddf):
-#     day_7 = mean_absolute_percentage_error(testdf[:7], preddf[:7])
-#     day_14 = mean_absolute_percentage_error(testdf[:14], preddf[:14])
-#     day_30 = mean_absolute_percentage_error(testdf[:30], preddf[:30])
-#     day_60 = mean_absolute_percentage_error(testdf[:60], preddf[:60])
-#     day_90 = mean_absolute_percentage_error(testdf[:90], preddf[:90])
-#
-#     results=pd.DataFrame({day_7,  day_14,  day_30 ,day_60, day_90} )
-#
-#
-#     return results
 
 
 def final_results(dataframe):
@@ -106,25 +96,25 @@ def final_results(dataframe):
     ###############################################################################
     ###############################################################################
 
-    # mape_n = mean_absolute_percentage_error(dataframe['Actual'], dataframe['Prediction N4'])
-    # mape_n = float("{:.3f}".format(mape_n))
-    # Days_90.append(mape_n)
-    #
-    # mape_7days_n = mean_absolute_percentage_error(dataframe['Actual'][:7], dataframe['Prediction N4'][:7])
-    # mape_7days_n = float("{:.3f}".format(mape_7days_n))
-    # Days_7.append(mape_7days_n)
-    #
-    # mape_14days_n = mean_absolute_percentage_error(dataframe['Actual'][:14], dataframe['Prediction N4'][:14])
-    # mape_14days_n = float("{:.3f}".format(mape_14days_n))
-    # Days_14.append(mape_14days_n)
-    #
-    # mape_30days_n = mean_absolute_percentage_error(dataframe['Actual'][:30], dataframe['Prediction N4'][:30])
-    # mape_30days_n = float("{:.3f}".format(mape_30days_n))
-    # Days_30.append(mape_30days_n)
-    #
-    # mape_60days_n = mean_absolute_percentage_error(dataframe['Actual'][:60], dataframe['Prediction N4'][:60])
-    # mape_60days_n = float("{:.3f}".format(mape_60days_n))
-    # Days_60.append(mape_60days_n)
+    mape_n = mean_absolute_percentage_error(dataframe['Actual'], dataframe['Forecast'])
+    mape_n = float("{:.3f}".format(mape_n))
+    Days_90.append(mape_n)
+
+    mape_7days_n = mean_absolute_percentage_error(dataframe['Actual'][:7], dataframe['Forecast'][:7])
+    mape_7days_n = float("{:.3f}".format(mape_7days_n))
+    Days_7.append(mape_7days_n)
+
+    mape_14days_n = mean_absolute_percentage_error(dataframe['Actual'][:14], dataframe['Forecast'][:14])
+    mape_14days_n = float("{:.3f}".format(mape_14days_n))
+    Days_14.append(mape_14days_n)
+
+    mape_30days_n = mean_absolute_percentage_error(dataframe['Actual'][:30], dataframe['Forecast'][:30])
+    mape_30days_n = float("{:.3f}".format(mape_30days_n))
+    Days_30.append(mape_30days_n)
+
+    mape_60days_n = mean_absolute_percentage_error(dataframe['Actual'][:60], dataframe['Forecast'][:60])
+    mape_60days_n = float("{:.3f}".format(mape_60days_n))
+    Days_60.append(mape_60days_n)
 
     ###############################################################################
     ###############################################################################
@@ -182,17 +172,17 @@ def final_results(dataframe):
     mape_9_Days = float("{:.3f}".format(mape_9_Days))
     Comp1.append(mape_9_Days)
 
-    # mape_9_Days = mean_absolute_percentage_error(dataframe['Actual'][:9], dataframe['Prediction N4'][:9])
-    # mape_9_Days = float("{:.3f}".format(mape_9_Days))
-    # Comp1.append(mape_9_Days)
+    mape_9_Days = mean_absolute_percentage_error(dataframe['Actual'][:9], dataframe['Forecast'][:9])
+    mape_9_Days = float("{:.3f}".format(mape_9_Days))
+    Comp1.append(mape_9_Days)
 
     mape_40_Days = mean_absolute_percentage_error(dataframe['Actual'][:40], dataframe['Prediction'][:40])
     mape_40_Days = float("{:.3f}".format(mape_40_Days))
     Comp2.append(mape_40_Days)
 
-    # mape_40_Days = mean_absolute_percentage_error(dataframe['Actual'][:40], dataframe['Prediction N4'][:40])
-    # mape_40_Days = float("{:.3f}".format(mape_40_Days))
-    # Comp2.append(mape_40_Days)
+    mape_40_Days = mean_absolute_percentage_error(dataframe['Actual'][:40], dataframe['Forecast'][:40])
+    mape_40_Days = float("{:.3f}".format(mape_40_Days))
+    Comp2.append(mape_40_Days)
 
     Comparison = pd.DataFrame({" 9 Days": Comp1, " 40 Days": Comp2})
     Comparison.to_csv("Results\Comparison" + ".csv", float_format="%.3f", index=True,
@@ -200,7 +190,7 @@ def final_results(dataframe):
 
     ###############################################################################
 
-    Names = ['MAE', 'MAPE', 'MSE', 'RMSE']
+    Names = ['MAE', 'MAPE','MAPE_Forecast', 'MSE', 'RMSE']
     finalresults = pd.DataFrame(
         {" 7 Days": Days_7, " 14 Days": Days_14, " 30 Days": Days_30, " 60 Days": Days_60, " 90 Days": Days_90,
          'NAMES': Names})
@@ -290,43 +280,40 @@ plt.title('Differenced Time Series of Total Deaths ');
 plt.plot(analysis['lognorm'].diff().diff());
 plt.show()
 ##################################################
-# arima_model = auto_arima(train['total_deaths'], start_p=0, start_q=0,
-#                       test='adf',       # use adftest to find optimal 'd'
-#                       max_p=15, max_q=15, # maximum p and q
-#                       m=30,              # frequency of series
-#                       d=2,           # let model determine 'd'
-#                       # D=1,
-#                       seasonal=False,   # Seasonality
-#                       trace=True,
-#
-#                       # max_order=10,
-#                       error_action='ignore',
-#                       suppress_warnings=True,
-#                       stepwise=True)
-# #
-# arima_model.summary()
-# arima_model.plot_diagnostics(figsize=(18,10))
-# plt.show()
-#
-#
-# ## Make Prediction ###
-# predname='deaths'
-# # # start=len(train)
-# # # end=len(train)+len(test)-1
-# prediction = pd.DataFrame(arima_model.predict(len(test),dynamic='true'))
-# prediction.columns = ['predicted_'+ predname]
-# prediction=prediction.set_index(test_dates)
+arima_model = auto_arima(train['total_deaths'], start_p=0, start_q=0,
+                      test='adf',       # use adftest to find optimal 'd'
+                      max_p=15, max_q=15, # maximum p and q
+                      m=30,              # frequency of series
+                      d=2,           # let model determine 'd'
+                      # D=1,
+                      seasonal=False,   # Seasonality
+                      trace=True,
 
-#     ### Results ####
-# test=test.set_index(test_dates)
+                      # max_order=10,
+                      error_action='ignore',
+                      suppress_warnings=True,
+                      stepwise=True)
+#
+arima_model.summary()
+arima_model.plot_diagnostics(figsize=(18,10))
+plt.show()
+
+
+## Make Prediction ###
+predname='deaths'
+# # start=len(train)
+# # end=len(train)+len(test)-1
+prediction = pd.DataFrame(arima_model.predict(len(test),dynamic='true'))
+prediction.columns = ['predicted_'+ predname]
+prediction=prediction.set_index(test_dates)
+
+    ### Results ####
+test=test.set_index(test_dates)
 # plotres(pd.DataFrame(train['total_deaths']) , test, prediction , predname, train_dates,test_dates)
-# totalpred=pd.concat([prediction, test], ignore_index=True ,axis=1)
-# totalpred=totalpred.rename(columns={0:'Prediction', 1:'Actual'})
-# finalresults = final_results(totalpred)
-# totalpred.plot(figsize=(14,10))
-# plt.show()
+totalpred=pd.concat([prediction, test], ignore_index=True ,axis=1)
+totalpred=totalpred.rename(columns={0:'Prediction', 1:'Actual'})
 
-from statsmodels.tsa.arima.model import ARIMA
+
 
 history = [x for x in train['total_deaths']]
 predictions4 = list()
@@ -341,12 +328,20 @@ for t in range(len(test)):
 	obs = testl[t]
 	history.append(obs)
 	print('predicted=%f, expected=%f' % (yhat, obs))
-predictions4=pd.DataFrame(predictions4)
-predictions4=predictions4.rename(columns={0:'Prediction4'})
+
+predictions4=pd.DataFrame(predictions4).set_index(test_dates)
+predictions4=predictions4.rename(columns={'Prediction4':'Forecast'})
+
+totalpred=pd.concat([totalpred, predictions4], ignore_index=True ,axis=1).rename(columns={0 :'Prediction' ,1:'Actual' , 2:'Forecast' })
+finalresults = final_results(totalpred)
+totalpred.plot(figsize=(14,10))
+plt.show()
+
+
 
 # train=train.reset_index(drop=True)
-test=test.reset_index(drop=True)
-model = ARIMA(train['total_deaths'], order=(8,2,6))
-model = model.fit()
-print(len(test) )
-lour = pd.DataFrame(model.predict(len(test)))
+# test=test.reset_index(drop=True)
+# model = ARIMA(train['total_deaths'], order=(8,2,6))
+# model = model.fit()
+# print(len(test) )
+# lour = pd.DataFrame(model.forecast(len(test)))
