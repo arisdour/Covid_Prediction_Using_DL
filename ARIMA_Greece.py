@@ -1,18 +1,20 @@
 import pandas as pd
 import numpy as np
+
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-from pmdarima.arima import auto_arima
-
-from statsmodels.tsa.arima.model import ARIMA
 
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
 
+from pmdarima.arima import auto_arima
+from statsmodels.tsa.arima.model import ARIMA
 
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
+
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.stattools import kpss
 
 def adftest(df):
     result = adfuller(df.dropna())
@@ -37,7 +39,24 @@ def split_data(data, sequence):
     test_set = data[369:]
     return train_set, test_set
 
+def for_loop_pred (train , test):
+    history = [x for x in train]
+    predictions4 = list()
+    testl = test.total_deaths.to_list()
+    # walk-forward validation
+    for t in range(len(test)):
+        model = ARIMA(history, order=(1, 2, 2) , seasonal_order=(0,0,1))
+        model_fit = model.fit()
+        output = model_fit.forecast()
+        yhat = output[0]
+        predictions4.append(yhat)
+        obs = testl[t]
+        history.append(obs)
+        print('predicted=%f, expected=%f' % (yhat, obs))
 
+    predictions4 = pd.DataFrame(predictions4).set_index(test_dates)
+    predictions4 = predictions4.rename(columns={'Prediction4': 'Forecast'})
+    return predictions4
 
 def final_results(dataframe):
 
@@ -195,6 +214,50 @@ def final_results(dataframe):
         {" 7 Days": Days_7, " 14 Days": Days_14, " 30 Days": Days_30, " 60 Days": Days_60, " 90 Days": Days_90,
          'NAMES': Names})
     finalresults = finalresults.set_index(['NAMES'])
+    finalresults.to_csv("Results\Final_results" + ".csv", float_format="%.3f", index=True,
+                      header=True)
+
+    # Plot Total Prediction
+    dataframe[:7].plot(figsize=(14, 10))
+    plt.title('Total Deaths Prediction')
+    plt.xlabel('Date')
+    plt.ylabel('Deaths')
+
+    plt.savefig("Plots\Prediction_for_7_days" +".jpeg"  )
+    plt.show()
+
+    dataframe[:14].plot(figsize=(14, 10))
+    plt.title('Total Deaths Prediction')
+    plt.xlabel('Date')
+    plt.ylabel('Deaths')
+
+    plt.savefig("Plots\Prediction_for_14_days" +".jpeg"  )
+    plt.show()
+
+    dataframe[:30].plot(figsize=(14, 10))
+    plt.title('Total Deaths Prediction')
+    plt.xlabel('Date')
+    plt.ylabel('Deaths')
+
+    plt.savefig("Plots\Prediction_for_30_days" +".jpeg"  )
+    plt.show()
+
+    dataframe[:60].plot(figsize=(14, 10))
+    plt.title('Total Deaths Prediction')
+    plt.xlabel('Date')
+    plt.ylabel('Deaths')
+
+    plt.savefig("Plots\Prediction_for_60_days" +".jpeg"  )
+    plt.show()
+
+    dataframe[:90].plot(figsize=(14, 10))
+    plt.title('Total Deaths Prediction')
+    plt.xlabel('Date')
+    plt.ylabel('Deaths')
+
+    plt.savefig("Plots\Prediction_for_90_days" +".jpeg"  )
+    plt.show()
+
     return finalresults
 
 def plotres (trainingset , testset ,pred, pname,traindate, testdate):
@@ -216,10 +279,6 @@ def decomposition(df):
     fig.tight_layout()
     plt.show()
     return decompose_result_mult
-
-from statsmodels.tsa.stattools import kpss
-
-from statsmodels.tsa.stattools import kpss
 
 def kpss_test(timeseries):
     print("Results of KPSS Test:")
@@ -248,100 +307,85 @@ test=test.dropna()
 test_dates=test.index
 test=test.reset_index(drop=True)
 
-# analysis = Greece_total[['total_deaths']].copy()
-## Analyse Data Set
-# analysis =Greece_total[["total_deaths"]].dropna()
+
 analysis =train
-analysis['lognorm'] = np.log(analysis['total_deaths'])
+# analysis['lognorm'] = np.log(analysis['total_deaths'])
 # decomp_res=decomposition(train) #Seasonal Decomposition
 
-
-adftestres = adftest(analysis['lognorm'].diff().diff().dropna()) # Use d= 2 for my model
-kpss_test(analysis['total_deaths'].diff().diff().dropna())
-
-
-
+############## AFT TEST ##############
+adftestres = adftest(analysis['total_deaths'].diff().diff().dropna()) # Use d= 2 for my model
+order2diff =analysis['total_deaths'].diff().diff().dropna()
+fig=order2diff.plot(figsize=(12,9))
+plt.savefig("Plots\Differencing" +".jpeg"  )
+plt.show()
 
 ############## ACF & PACF Plots ################
 #Calculate p order PACF
 
-fig=plot_pacf(analysis['lognorm'].diff().diff().dropna())
+fig=plot_pacf(analysis.diff().diff().dropna())
 fig.set_size_inches((16, 9))
-plt.show()
-#
-fig=plot_acf(analysis['lognorm'].diff().diff().dropna())
-fig.set_size_inches((16, 9))
+plt.savefig("Plots\PACF" +".jpeg"  )
 plt.show()
 
-plt.figure(figsize=(18,5));
-plt.xlabel('date');
-plt.ylabel('Total Deaths ');
-plt.title('Differenced Time Series of Total Deaths ');
-plt.plot(analysis['lognorm'].diff().diff());
+fig=plot_acf(analysis.diff().diff().dropna())
+fig.set_size_inches((16, 9))
+plt.savefig("Plots\ACF" +".jpeg"  )
 plt.show()
 ##################################################
 arima_model = auto_arima(train['total_deaths'], start_p=0, start_q=0,
                       test='adf',       # use adftest to find optimal 'd'
                       max_p=15, max_q=15, # maximum p and q
-                      m=30,              # frequency of series
-                      d=2,           # let model determine 'd'
+                      m=1,              # frequency of series
+                      # d=1,           # let model determine 'd'
                       # D=1,
                       seasonal=False,   # Seasonality
                       trace=True,
-
-                      # max_order=10,
+                      max_order=10,
                       error_action='ignore',
                       suppress_warnings=True,
                       stepwise=True)
 #
 arima_model.summary()
 arima_model.plot_diagnostics(figsize=(18,10))
+plt.savefig("Plots\Model_Diagnostics_diagnostics" + ".jpeg")
 plt.show()
 
 
 ## Make Prediction ###
 predname='deaths'
-# # start=len(train)
-# # end=len(train)+len(test)-1
-prediction = pd.DataFrame(arima_model.predict(len(test),dynamic='true'))
+prediction,ci=arima_model.predict(len(test),dynamic='true',alpha=0.05,return_conf_int=True)
+prediction = pd.DataFrame(prediction)
 prediction.columns = ['predicted_'+ predname]
 prediction=prediction.set_index(test_dates)
 
     ### Results ####
 test=test.set_index(test_dates)
-# plotres(pd.DataFrame(train['total_deaths']) , test, prediction , predname, train_dates,test_dates)
 totalpred=pd.concat([prediction, test], ignore_index=True ,axis=1)
 totalpred=totalpred.rename(columns={0:'Prediction', 1:'Actual'})
 
+## 4 Loop Prediction ###
+# predictions4 = for_loop_pred(train['total_deaths'] ,test)
+#
+# ### Final Results ####
+# totalpred=pd.concat([totalpred, predictions4], ignore_index=True ,axis=1).rename(columns={0 :'Prediction' ,1:'Actual' , 2:'Forecast' })
+# finalresults = final_results(totalpred)
 
 
-history = [x for x in train['total_deaths']]
-predictions4 = list()
-testl=test.total_deaths.to_list()
-# walk-forward validation
-for t in range(len(test)):
-	model = ARIMA(history, order=(8,2,6))
-	model_fit = model.fit()
-	output = model_fit.forecast()
-	yhat = output[0]
-	predictions4.append(yhat)
-	obs = testl[t]
-	history.append(obs)
-	print('predicted=%f, expected=%f' % (yhat, obs))
+## Get Confidence Intervals
+lower_series = pd.Series(ci[:90, 0], index=test[:90].index)
+upper_series = pd.Series(ci[:90, 1], index=test[:90].index)
 
-predictions4=pd.DataFrame(predictions4).set_index(test_dates)
-predictions4=predictions4.rename(columns={'Prediction4':'Forecast'})
-
-totalpred=pd.concat([totalpred, predictions4], ignore_index=True ,axis=1).rename(columns={0 :'Prediction' ,1:'Actual' , 2:'Forecast' })
-finalresults = final_results(totalpred)
-totalpred.plot(figsize=(14,10))
+# Plot
+train=train.set_index(train_dates)
+prediction=prediction.set_index(test_dates)
+plt.figure(figsize=(16,9), dpi=100)
+plt.plot(train, label='Training')
+plt.plot(test[:90], label='Actual')
+plt.plot(prediction[:90], label='Prediction')
+plt.xlabel('Date')
+plt.ylabel('Deaths')
+plt.fill_between(lower_series.index, lower_series, upper_series, color='k', alpha=.15)
+plt.title('Forecast vs Actuals')
+plt.legend(loc='upper left', fontsize=8)
+plt.savefig("Plots\CI_Plot" + ".jpeg")
 plt.show()
-
-
-
-# train=train.reset_index(drop=True)
-# test=test.reset_index(drop=True)
-# model = ARIMA(train['total_deaths'], order=(8,2,6))
-# model = model.fit()
-# print(len(test) )
-# lour = pd.DataFrame(model.forecast(len(test)))
