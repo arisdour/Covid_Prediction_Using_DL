@@ -39,13 +39,13 @@ def split_data(data, sequence):
     test_set = data[369:]
     return train_set, test_set
 
-def for_loop_pred (train , test):
+def for_loop_pred (train , test ,order):
     history = [x for x in train]
     predictions4 = list()
     testl = test.total_deaths.to_list()
     # walk-forward validation
     for t in range(len(test)):
-        model = ARIMA(history, order=(1, 2, 2) , seasonal_order=(0,0,1))
+        model = ARIMA(history, order=order,enforce_stationarity=False)
         model_fit = model.fit()
         output = model_fit.forecast()
         yhat = output[0]
@@ -272,6 +272,83 @@ def plotres (trainingset , testset ,pred, pname,traindate, testdate):
     plt.ylabel('Total '+ pname)
     plt.show()
 
+def cor_plots(df, pname):
+    # Original Series
+    plt.rcParams.update({'figure.figsize': (18, 14), 'figure.dpi': 120})
+    fig, axes = plt.subplots(4, 2, sharex=False)
+    axes[0, 0].plot(df[pname]);
+    axes[0, 0].set_title('Original Series')
+    plot_acf(df[pname], ax=axes[0, 1])
+
+    # 1st Differencing
+    axes[1, 0].plot(df[pname].diff());
+    axes[1, 0].set_title('1st Order Differencing')
+    plot_acf(df[pname].diff().dropna(), ax=axes[1, 1])
+
+    # 2nd Differencing
+    axes[2, 0].plot(df[pname].diff().diff());
+    axes[2, 0].set_title('2nd Order Differencing')
+    plot_acf(df[pname].diff().diff().dropna(), ax=axes[2, 1])
+
+    # 3rd Differencing
+    axes[3, 0].plot(df[pname].diff().diff().diff());
+    axes[3, 0].set_title('3rd Order Differencing')
+    plot_acf(df[pname].diff().diff().diff().dropna(), ax=axes[3, 1])
+    plt.savefig("Plots\ACF" + ".jpeg")
+    plt.show()
+
+    #####################################################
+
+    plt.rcParams.update({'figure.figsize': (18, 14), 'figure.dpi': 120})
+    fig, axes = plt.subplots(4, 2, sharex=False)
+    axes[0, 0].plot(df[pname]);
+    axes[0, 0].set_title('Original Series')
+    plot_pacf(df[pname], ax=axes[0, 1])
+
+    # 1st Differencing
+    axes[1, 0].plot(df[pname].diff());
+    axes[1, 0].set_title('1st Order Differencing')
+    plot_pacf(df[pname].diff().dropna(), ax=axes[1, 1])
+
+    # 2nd Differencing
+    axes[2, 0].plot(df[pname].diff().diff());
+    axes[2, 0].set_title('2nd Order Differencing')
+    plot_pacf(df[pname].diff().diff().dropna(), ax=axes[2, 1])
+
+    # 3rd Differencing
+    axes[3, 0].plot(df[pname].diff().diff().diff());
+    axes[3, 0].set_title('3rd Order Differencing')
+    plot_pacf(df[pname].diff().diff().diff().dropna(), ax=axes[3, 1])
+    plt.savefig("Plots\PACF" + ".jpeg")
+    plt.show()
+
+    #####################################################
+
+    plt.rcParams.update({'figure.figsize': (18, 14), 'figure.dpi': 120})
+    fig, axes = plt.subplots(4, 2, sharex=False)
+
+    plot_acf(df[pname], ax=axes[0, 0])
+    axes[0, 0].set_title('Autocorrelation')
+    plot_pacf(df[pname], ax=axes[0, 1])
+
+    # 1st Differencing
+    plot_acf(df[pname].diff().dropna(), ax=axes[1, 0])
+    axes[1, 0].set_title('1st Order Differencing Autocorrelation')
+    plot_pacf(df[pname].diff().dropna(), ax=axes[1, 1])
+
+    # 2nd Differencing
+    plot_acf(df[pname].diff().diff().dropna(), ax=axes[2, 0])
+    axes[2, 0].set_title('2nd Order Differencing Autocorrelation')
+    plot_pacf(df[pname].diff().diff().dropna(), ax=axes[2, 1])
+
+    # 3rd Differencing
+    plot_acf(df[pname].diff().diff().diff().dropna(), ax=axes[3, 0])
+    axes[3, 0].set_title('3rd Order Differencing Autocorrelation')
+    plot_pacf(df[pname].diff().diff().diff().dropna(), ax=axes[3, 1])
+    plt.savefig("Plots\PACF_ACF" + ".jpeg")
+    plt.show()
+
+
 def decomposition(df):
     decompose_result_mult = seasonal_decompose(df, model="multiapplicative")
     fig = decompose_result_mult.plot()
@@ -309,38 +386,26 @@ test=test.reset_index(drop=True)
 
 
 analysis =train
-# analysis['lognorm'] = np.log(analysis['total_deaths'])
+
 # decomp_res=decomposition(train) #Seasonal Decomposition
 
 ############## AFT TEST ##############
 adftestres = adftest(analysis['total_deaths'].diff().diff().dropna()) # Use d= 2 for my model
-order2diff =analysis['total_deaths'].diff().diff().dropna()
-fig=order2diff.plot(figsize=(12,9))
-plt.savefig("Plots\Differencing" +".jpeg"  )
-plt.show()
 
 ############## ACF & PACF Plots ################
-#Calculate p order PACF
 
-fig=plot_pacf(analysis.diff().diff().dropna())
-fig.set_size_inches((16, 9))
-plt.savefig("Plots\PACF" +".jpeg"  )
-plt.show()
+cor_plots(analysis , 'total_deaths')
 
-fig=plot_acf(analysis.diff().diff().dropna())
-fig.set_size_inches((16, 9))
-plt.savefig("Plots\ACF" +".jpeg"  )
-plt.show()
 ##################################################
-arima_model = auto_arima(train['total_deaths'], start_p=0, start_q=0,
+arima_model = auto_arima(train['total_deaths'], start_p=2, start_q=3,
                       test='adf',       # use adftest to find optimal 'd'
-                      max_p=15, max_q=15, # maximum p and q
+                      max_p=5, max_q=5, # maximum p and q
                       m=1,              # frequency of series
-                      # d=1,           # let model determine 'd'
-                      # D=1,
+                      # d=3,           # let model determine 'd'
+                      # D=3,
                       seasonal=False,   # Seasonality
                       trace=True,
-                      max_order=10,
+                      # max_order=20,
                       error_action='ignore',
                       suppress_warnings=True,
                       stepwise=True)
@@ -351,37 +416,39 @@ plt.savefig("Plots\Model_Diagnostics_diagnostics" + ".jpeg")
 plt.show()
 
 
-## Make Prediction ###
+## Make Auto ARIMA Prediction ###
 predname='deaths'
 prediction,ci=arima_model.predict(len(test),dynamic='true',alpha=0.05,return_conf_int=True)
 prediction = pd.DataFrame(prediction)
 prediction.columns = ['predicted_'+ predname]
 prediction=prediction.set_index(test_dates)
 
-    ### Results ####
+
+
+
+### Results ####
 test=test.set_index(test_dates)
 totalpred=pd.concat([prediction, test], ignore_index=True ,axis=1)
 totalpred=totalpred.rename(columns={0:'Prediction', 1:'Actual'})
 
-## 4 Loop Prediction ###
-# predictions4 = for_loop_pred(train['total_deaths'] ,test)
-#
-# ### Final Results ####
-# totalpred=pd.concat([totalpred, predictions4], ignore_index=True ,axis=1).rename(columns={0 :'Prediction' ,1:'Actual' , 2:'Forecast' })
-# finalresults = final_results(totalpred)
+# 4 Loop Prediction ###
+predictions4 = for_loop_pred(train['total_deaths'] ,test , (5,2,5))
 
+### Final Results ####
+totalpred=pd.concat([totalpred, predictions4], ignore_index=True ,axis=1).rename(columns={0 :'Prediction' ,1:'Actual' , 2:'Forecast' })
+finalresults = final_results(totalpred)
 
 ## Get Confidence Intervals
-lower_series = pd.Series(ci[:90, 0], index=test[:90].index)
-upper_series = pd.Series(ci[:90, 1], index=test[:90].index)
+lower_series = pd.Series(ci[:60, 0], index=test[:60].index)
+upper_series = pd.Series(ci[:60, 1], index=test[:60].index)
 
 # Plot
 train=train.set_index(train_dates)
 prediction=prediction.set_index(test_dates)
-plt.figure(figsize=(16,9), dpi=100)
+plt.figure(figsize=(16,10), dpi=100)
 plt.plot(train, label='Training')
-plt.plot(test[:90], label='Actual')
-plt.plot(prediction[:90], label='Prediction')
+plt.plot(test[:60], label='Actual')
+plt.plot(prediction[:60], label='Prediction')
 plt.xlabel('Date')
 plt.ylabel('Deaths')
 plt.fill_between(lower_series.index, lower_series, upper_series, color='k', alpha=.15)
@@ -389,3 +456,24 @@ plt.title('Forecast vs Actuals')
 plt.legend(loc='upper left', fontsize=8)
 plt.savefig("Plots\CI_Plot" + ".jpeg")
 plt.show()
+
+
+############# CUSTOM MODEL ############# CUSTOM MODEL ############# CUSTOM MODEL ############# CUSTOM MODEL #############
+# test=test.reset_index(drop=True)
+# ## Make Custom ARIMA Prediction ###
+# model1 = ARIMA(train['total_deaths'], order=(2,2,3) ,freq='D')
+# model1 = model1.fit()
+# model1.summary()
+# model1.plot_diagnostics(figsize=(18,10))
+# plt.show()
+# custom_pred ,ci = pd.DataFrame(model1.forecast(len(test),alpha=0.05,return_conf_int=True))
+#
+#
+# ### Plot Model Comparison ###
+# plt.plot(custom_pred , label='Model_1')
+# plt.plot(totalpred['Prediction'],  label='Auto_ARIMA')
+# plt.plot(totalpred['Actual'],  label='Actual Cases')
+# plt.title('Forecast vs Actuals')
+# plt.legend(loc='upper left', fontsize=12)
+# plt.savefig("Plots\Model_Comparison" + ".jpeg")
+# plt.show()
