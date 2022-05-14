@@ -42,7 +42,7 @@ def split_data(data, sequence):
 def for_loop_pred (train , test ,order):
     history = [x for x in train]
     predictions4 = list()
-    testl = test.total_deaths.to_list()
+    testl = test.total_cases.to_list()
     # walk-forward validation
     for t in range(len(test)):
         model = ARIMA(history, order=order,enforce_stationarity=False)
@@ -219,41 +219,41 @@ def final_results(dataframe):
 
     # Plot Total Prediction
     dataframe[:7].plot(figsize=(14, 10))
-    plt.title('Total Deaths Prediction')
+    plt.title('Total cases Prediction')
     plt.xlabel('Date')
-    plt.ylabel('Deaths')
+    plt.ylabel('cases')
 
     plt.savefig("Plots\Prediction_for_7_days" +".jpeg"  )
     plt.show()
 
     dataframe[:14].plot(figsize=(14, 10))
-    plt.title('Total Deaths Prediction')
+    plt.title('Total cases Prediction')
     plt.xlabel('Date')
-    plt.ylabel('Deaths')
+    plt.ylabel('cases')
 
     plt.savefig("Plots\Prediction_for_14_days" +".jpeg"  )
     plt.show()
 
     dataframe[:30].plot(figsize=(14, 10))
-    plt.title('Total Deaths Prediction')
+    plt.title('Total cases Prediction')
     plt.xlabel('Date')
-    plt.ylabel('Deaths')
+    plt.ylabel('cases')
 
     plt.savefig("Plots\Prediction_for_30_days" +".jpeg"  )
     plt.show()
 
     dataframe[:60].plot(figsize=(14, 10))
-    plt.title('Total Deaths Prediction')
+    plt.title('Total cases Prediction')
     plt.xlabel('Date')
-    plt.ylabel('Deaths')
+    plt.ylabel('cases')
 
     plt.savefig("Plots\Prediction_for_60_days" +".jpeg"  )
     plt.show()
 
     dataframe[:90].plot(figsize=(14, 10))
-    plt.title('Total Deaths Prediction')
+    plt.title('Total cases Prediction')
     plt.xlabel('Date')
-    plt.ylabel('Deaths')
+    plt.ylabel('cases')
 
     plt.savefig("Plots\Prediction_for_90_days" +".jpeg"  )
     plt.show()
@@ -374,12 +374,12 @@ Greece_total = pd.read_csv(loc,parse_dates=True,index_col="date")
 train,test = split_data(Greece_total,0)
 
 ### Train Set - Test Set Split ###
-train = train[['total_deaths']].copy()
+train = train[['total_cases']].copy()
 train=train.dropna()
 train_dates=train.index
 train=train.reset_index(drop=True)
 
-test = test[['total_deaths']].copy()
+test = test[['total_cases']].copy()
 test=test.dropna()
 test_dates=test.index
 test=test.reset_index(drop=True)
@@ -390,14 +390,14 @@ analysis =train
 # decomp_res=decomposition(train) #Seasonal Decomposition
 
 ############## AFT TEST ##############
-adftestres = adftest(analysis['total_deaths'].diff().diff().dropna()) # Use d= 2 for my model
+adftestres = adftest(analysis['total_cases'].diff().diff().dropna()) # Use d= 2 for my model
 
 ############## ACF & PACF Plots ################
 
-cor_plots(analysis , 'total_deaths')
+cor_plots(analysis , 'total_cases')
 
 ##################################################
-arima_model = auto_arima(train['total_deaths'], start_p=2, start_q=3,
+arima_model = auto_arima(train['total_cases'], start_p=2, start_q=3,
                       test='adf',       # use adftest to find optimal 'd'
                       max_p=5, max_q=5, # maximum p and q
                       m=1,              # frequency of series
@@ -417,7 +417,7 @@ plt.show()
 
 
 ## Make Auto ARIMA Prediction ###
-predname='deaths'
+predname='cases'
 prediction,ci=arima_model.predict(len(test),dynamic='true',alpha=0.05,return_conf_int=True)
 prediction = pd.DataFrame(prediction)
 prediction.columns = ['predicted_'+ predname]
@@ -432,7 +432,7 @@ totalpred=pd.concat([prediction, test], ignore_index=True ,axis=1)
 totalpred=totalpred.rename(columns={0:'Prediction', 1:'Actual'})
 
 # 4 Loop Prediction ###
-predictions4 = for_loop_pred(train['total_deaths'] ,test , (5,2,5))
+predictions4 = for_loop_pred(train['total_cases'] ,test , (5,2,5))
 
 ### Final Results ####
 totalpred=pd.concat([totalpred, predictions4], ignore_index=True ,axis=1).rename(columns={0 :'Prediction' ,1:'Actual' , 2:'Forecast' })
@@ -450,7 +450,7 @@ plt.plot(train, label='Training')
 plt.plot(test[:60], label='Actual')
 plt.plot(prediction[:60], label='Prediction')
 plt.xlabel('Date')
-plt.ylabel('Deaths')
+plt.ylabel('cases')
 plt.fill_between(lower_series.index, lower_series, upper_series, color='k', alpha=.15)
 plt.title('Forecast vs Actuals')
 plt.legend(loc='upper left', fontsize=8)
@@ -461,7 +461,7 @@ plt.show()
 ############# CUSTOM MODEL ############# CUSTOM MODEL ############# CUSTOM MODEL ############# CUSTOM MODEL #############
 # test=test.reset_index(drop=True)
 # ## Make Custom ARIMA Prediction ###
-# model1 = ARIMA(train['total_deaths'], order=(2,2,3) ,freq='D')
+# model1 = ARIMA(train['total_cases'], order=(2,2,3) ,freq='D')
 # model1 = model1.fit()
 # model1.summary()
 # model1.plot_diagnostics(figsize=(18,10))
