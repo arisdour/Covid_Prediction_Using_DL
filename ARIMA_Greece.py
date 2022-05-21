@@ -390,7 +390,7 @@ analysis =train
 # decomp_res=decomposition(train) #Seasonal Decomposition
 
 ############## AFT TEST ##############
-adftestres = adftest(analysis['total_deaths'].diff().diff().diff().dropna()) # Use d= 2 for my model
+adftestres = adftest(analysis['total_deaths'].diff().diff().dropna()) # Use d= 2 for my model
 
 ############## ACF & PACF Plots ################
 
@@ -401,7 +401,7 @@ arima_model = auto_arima(train['total_deaths'], start_p=2, start_q=4,
                       test='adf',       # use adftest to find optimal 'd'
                       max_p=7, max_q=7, # maximum p and q
                       m=1,              # frequency of series
-                      d=2,           # let model determine 'd'
+                      # d=3,           # let model determine 'd'
                       # D=3,
                       seasonal=False,   # Seasonality
                       trace=True,
@@ -477,3 +477,5 @@ plt.show()
 # plt.legend(loc='upper left', fontsize=12)
 # plt.savefig("Plots/Model_Comparison" + ".jpeg")
 # plt.show()
+lour=pd.DataFrame(test_dates)
+print(a)
