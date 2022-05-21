@@ -32,6 +32,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
 def split_data(data, sequence):
+    data=data.dropna()
     # train_set = data[:-9]
     train_set = data[:369]
     # train_set = data[355 - sequence:369]
@@ -42,7 +43,7 @@ def split_data(data, sequence):
 def for_loop_pred (train , test ,order):
     history = [x for x in train]
     predictions4 = list()
-    testl = test.total_cases.to_list()
+    testl = test.total_deaths.to_list()
     # walk-forward validation
     for t in range(len(test)):
         model = ARIMA(history, order=order,enforce_stationarity=False)
@@ -204,7 +205,7 @@ def final_results(dataframe):
     Comp2.append(mape_40_Days)
 
     Comparison = pd.DataFrame({" 9 Days": Comp1, " 40 Days": Comp2})
-    Comparison.to_csv("Results\Comparison" + ".csv", float_format="%.3f", index=True,
+    Comparison.to_csv("Results/Comparison" + ".csv", float_format="%.3f", index=True,
                       header=True)
 
     ###############################################################################
@@ -214,48 +215,48 @@ def final_results(dataframe):
         {" 7 Days": Days_7, " 14 Days": Days_14, " 30 Days": Days_30, " 60 Days": Days_60, " 90 Days": Days_90,
          'NAMES': Names})
     finalresults = finalresults.set_index(['NAMES'])
-    finalresults.to_csv("Results\Final_results" + ".csv", float_format="%.3f", index=True,
+    finalresults.to_csv("Results/Final_results" + ".csv", float_format="%.3f", index=True,
                       header=True)
 
     # Plot Total Prediction
     dataframe[:7].plot(figsize=(14, 10))
-    plt.title('Total cases Prediction')
+    plt.title('Total deaths Prediction')
     plt.xlabel('Date')
-    plt.ylabel('cases')
+    plt.ylabel('deaths')
 
-    plt.savefig("Plots\Prediction_for_7_days" +".jpeg"  )
+    plt.savefig("Plots/Prediction_for_7_days" +".jpeg"  )
     plt.show()
 
     dataframe[:14].plot(figsize=(14, 10))
-    plt.title('Total cases Prediction')
+    plt.title('Total deaths Prediction')
     plt.xlabel('Date')
-    plt.ylabel('cases')
+    plt.ylabel('deaths')
 
-    plt.savefig("Plots\Prediction_for_14_days" +".jpeg"  )
+    plt.savefig("Plots/Prediction_for_14_days" +".jpeg"  )
     plt.show()
 
     dataframe[:30].plot(figsize=(14, 10))
-    plt.title('Total cases Prediction')
+    plt.title('Total deaths Prediction')
     plt.xlabel('Date')
-    plt.ylabel('cases')
+    plt.ylabel('deaths')
 
-    plt.savefig("Plots\Prediction_for_30_days" +".jpeg"  )
+    plt.savefig("Plots/Prediction_for_30_days" +".jpeg"  )
     plt.show()
 
     dataframe[:60].plot(figsize=(14, 10))
-    plt.title('Total cases Prediction')
+    plt.title('Total deaths Prediction')
     plt.xlabel('Date')
-    plt.ylabel('cases')
+    plt.ylabel('deaths')
 
-    plt.savefig("Plots\Prediction_for_60_days" +".jpeg"  )
+    plt.savefig("Plots/Prediction_for_60_days" +".jpeg"  )
     plt.show()
 
     dataframe[:90].plot(figsize=(14, 10))
-    plt.title('Total cases Prediction')
+    plt.title('Total deaths Prediction')
     plt.xlabel('Date')
-    plt.ylabel('cases')
+    plt.ylabel('deaths')
 
-    plt.savefig("Plots\Prediction_for_90_days" +".jpeg"  )
+    plt.savefig("Plots/Prediction_for_90_days" +".jpeg"  )
     plt.show()
 
     return finalresults
@@ -294,7 +295,7 @@ def cor_plots(df, pname):
     axes[3, 0].plot(df[pname].diff().diff().diff());
     axes[3, 0].set_title('3rd Order Differencing')
     plot_acf(df[pname].diff().diff().diff().dropna(), ax=axes[3, 1])
-    plt.savefig("Plots\ACF" + ".jpeg")
+    plt.savefig("Plots/ACF" + ".jpeg")
     plt.show()
 
     #####################################################
@@ -319,7 +320,7 @@ def cor_plots(df, pname):
     axes[3, 0].plot(df[pname].diff().diff().diff());
     axes[3, 0].set_title('3rd Order Differencing')
     plot_pacf(df[pname].diff().diff().diff().dropna(), ax=axes[3, 1])
-    plt.savefig("Plots\PACF" + ".jpeg")
+    plt.savefig("Plots/PACF" + ".jpeg")
     plt.show()
 
     #####################################################
@@ -345,9 +346,8 @@ def cor_plots(df, pname):
     plot_acf(df[pname].diff().diff().diff().dropna(), ax=axes[3, 0])
     axes[3, 0].set_title('3rd Order Differencing Autocorrelation')
     plot_pacf(df[pname].diff().diff().diff().dropna(), ax=axes[3, 1])
-    plt.savefig("Plots\PACF_ACF" + ".jpeg")
+    plt.savefig("Plots/PACF_ACF" + ".jpeg")
     plt.show()
-
 
 def decomposition(df):
     decompose_result_mult = seasonal_decompose(df, model="multiapplicative")
@@ -371,15 +371,15 @@ loc="owid_dataset_fixed.csv"
 # loc="owid_dataset_weekly.csv"
 
 Greece_total = pd.read_csv(loc,parse_dates=True,index_col="date")
-train,test = split_data(Greece_total,0)
+train,test = split_data(Greece_total[['total_deaths']],0)
 
 ### Train Set - Test Set Split ###
-train = train[['total_cases']].copy()
+train = train[['total_deaths']].copy()
 train=train.dropna()
 train_dates=train.index
 train=train.reset_index(drop=True)
 
-test = test[['total_cases']].copy()
+test = test[['total_deaths']].copy()
 test=test.dropna()
 test_dates=test.index
 test=test.reset_index(drop=True)
@@ -390,18 +390,18 @@ analysis =train
 # decomp_res=decomposition(train) #Seasonal Decomposition
 
 ############## AFT TEST ##############
-adftestres = adftest(analysis['total_cases'].diff().diff().dropna()) # Use d= 2 for my model
+adftestres = adftest(analysis['total_deaths'].diff().diff().diff().dropna()) # Use d= 2 for my model
 
 ############## ACF & PACF Plots ################
 
-cor_plots(analysis , 'total_cases')
+cor_plots(analysis , 'total_deaths')
 
 ##################################################
-arima_model = auto_arima(train['total_cases'], start_p=2, start_q=3,
+arima_model = auto_arima(train['total_deaths'], start_p=2, start_q=4,
                       test='adf',       # use adftest to find optimal 'd'
-                      max_p=5, max_q=5, # maximum p and q
+                      max_p=7, max_q=7, # maximum p and q
                       m=1,              # frequency of series
-                      # d=3,           # let model determine 'd'
+                      d=2,           # let model determine 'd'
                       # D=3,
                       seasonal=False,   # Seasonality
                       trace=True,
@@ -410,14 +410,14 @@ arima_model = auto_arima(train['total_cases'], start_p=2, start_q=3,
                       suppress_warnings=True,
                       stepwise=True)
 #
-arima_model.summary()
+a=arima_model.summary()
 arima_model.plot_diagnostics(figsize=(18,10))
-plt.savefig("Plots\Model_Diagnostics_diagnostics" + ".jpeg")
+plt.savefig("Plots/Model_Diagnostics_diagnostics" + ".jpeg")
 plt.show()
 
 
 ## Make Auto ARIMA Prediction ###
-predname='cases'
+predname='deaths'
 prediction,ci=arima_model.predict(len(test),dynamic='true',alpha=0.05,return_conf_int=True)
 prediction = pd.DataFrame(prediction)
 prediction.columns = ['predicted_'+ predname]
@@ -432,7 +432,7 @@ totalpred=pd.concat([prediction, test], ignore_index=True ,axis=1)
 totalpred=totalpred.rename(columns={0:'Prediction', 1:'Actual'})
 
 # 4 Loop Prediction ###
-predictions4 = for_loop_pred(train['total_cases'] ,test , (5,2,5))
+predictions4 = for_loop_pred(train['total_deaths'] ,test , (7,2,1))
 
 ### Final Results ####
 totalpred=pd.concat([totalpred, predictions4], ignore_index=True ,axis=1).rename(columns={0 :'Prediction' ,1:'Actual' , 2:'Forecast' })
@@ -450,30 +450,30 @@ plt.plot(train, label='Training')
 plt.plot(test[:60], label='Actual')
 plt.plot(prediction[:60], label='Prediction')
 plt.xlabel('Date')
-plt.ylabel('cases')
+plt.ylabel('deaths')
 plt.fill_between(lower_series.index, lower_series, upper_series, color='k', alpha=.15)
 plt.title('Forecast vs Actuals')
 plt.legend(loc='upper left', fontsize=8)
-plt.savefig("Plots\CI_Plot" + ".jpeg")
+plt.savefig("Plots/CI_Plot" + ".jpeg")
 plt.show()
 
 
 ############# CUSTOM MODEL ############# CUSTOM MODEL ############# CUSTOM MODEL ############# CUSTOM MODEL #############
 # test=test.reset_index(drop=True)
 # ## Make Custom ARIMA Prediction ###
-# model1 = ARIMA(train['total_cases'], order=(2,2,3) ,freq='D')
+# model1 = ARIMA(train['total_deaths'], order=(7,2,6) ,freq='D')
 # model1 = model1.fit()
 # model1.summary()
 # model1.plot_diagnostics(figsize=(18,10))
 # plt.show()
-# custom_pred ,ci = pd.DataFrame(model1.forecast(len(test),alpha=0.05,return_conf_int=True))
-#
-#
+# custom_pred = pd.DataFrame(model1.forecast(len(test),alpha=0.05,return_conf_int=True))
+# #
+# #
 # ### Plot Model Comparison ###
 # plt.plot(custom_pred , label='Model_1')
 # plt.plot(totalpred['Prediction'],  label='Auto_ARIMA')
-# plt.plot(totalpred['Actual'],  label='Actual Cases')
+# plt.plot(totalpred['Actual'],  label='Actual deaths')
 # plt.title('Forecast vs Actuals')
 # plt.legend(loc='upper left', fontsize=12)
-# plt.savefig("Plots\Model_Comparison" + ".jpeg")
+# plt.savefig("Plots/Model_Comparison" + ".jpeg")
 # plt.show()
