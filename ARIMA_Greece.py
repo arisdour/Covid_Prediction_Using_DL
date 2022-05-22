@@ -397,18 +397,18 @@ adftestres = adftest(analysis['total_deaths'].diff().diff().dropna()) # Use d= 2
 cor_plots(analysis , 'total_deaths')
 
 ##################################################
-arima_model = auto_arima(train['total_deaths'], start_p=2, start_q=4,
+arima_model = auto_arima(train['total_deaths'], start_p=1, start_q=2,
                       test='adf',       # use adftest to find optimal 'd'
-                      max_p=7, max_q=7, # maximum p and q
+                      max_p=10, max_q=10, # maximum p and q
                       m=1,              # frequency of series
-                      # d=3,           # let model determine 'd'
+                      d=2,           # let model determine 'd'
                       # D=3,
                       seasonal=False,   # Seasonality
                       trace=True,
-                      # max_order=20,
+                      max_order=20,
                       error_action='ignore',
                       suppress_warnings=True,
-                      stepwise=True)
+                      stepwise=False)
 #
 a=arima_model.summary()
 arima_model.plot_diagnostics(figsize=(18,10))
